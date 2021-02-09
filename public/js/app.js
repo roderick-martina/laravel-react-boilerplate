@@ -51594,6 +51594,18 @@ var map = {
 		"./resources/js/Pages/Dashboard.tsx",
 		"resources_js_Pages_Dashboard_tsx"
 	],
+	"./Settings": [
+		"./resources/js/Pages/Settings.tsx",
+		"resources_js_Pages_Settings_tsx"
+	],
+	"./Settings.": [
+		"./resources/js/Pages/Settings.tsx",
+		"resources_js_Pages_Settings_tsx"
+	],
+	"./Settings.tsx": [
+		"./resources/js/Pages/Settings.tsx",
+		"resources_js_Pages_Settings_tsx"
+	],
 	"./Welcome": [
 		"./resources/js/Pages/Welcome.tsx",
 		"resources_js_Pages_Welcome_tsx"
@@ -51722,7 +51734,7 @@ module.exports = webpackAsyncContext;
 /******/ 		// This function allow to reference async chunks
 /******/ 		__webpack_require__.u = (chunkId) => {
 /******/ 			// return url for filenames not based on template
-/******/ 			if ({"resources_js_Pages_Dashboard_tsx":1,"resources_js_Pages_Welcome_tsx":1}[chunkId]) return "" + chunkId + ".js";
+/******/ 			if ({"resources_js_Pages_Dashboard_tsx":1,"resources_js_Pages_Settings_tsx":1,"resources_js_Pages_Welcome_tsx":1}[chunkId]) return "" + chunkId + ".js";
 /******/ 			// return url for filenames based on template
 /******/ 			return undefined;
 /******/ 		};

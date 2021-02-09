@@ -1,4 +1,4 @@
-(self["webpackChunk"] = self["webpackChunk"] || []).push([["resources_js_Pages_Dashboard_tsx"],{
+(self["webpackChunk"] = self["webpackChunk"] || []).push([["resources_js_Pages_Settings_tsx"],{
 
 /***/ "./node_modules/@emotion/is-prop-valid/dist/is-prop-valid.browser.esm.js":
 /*!*******************************************************************************!*\
@@ -6756,10 +6756,10 @@ exports.default = exports.AppContext;
 
 /***/ }),
 
-/***/ "./resources/js/Pages/Dashboard.tsx":
-/*!******************************************!*\
-  !*** ./resources/js/Pages/Dashboard.tsx ***!
-  \******************************************/
+/***/ "./resources/js/Pages/Settings.tsx":
+/*!*****************************************!*\
+  !*** ./resources/js/Pages/Settings.tsx ***!
+  \*****************************************/
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
@@ -6815,7 +6815,7 @@ var Layout_1 = __importDefault(__webpack_require__(/*! @/Shared/Layout */ "./res
 
 var NestedLayout_1 = __importDefault(__webpack_require__(/*! @/Shared/NestedLayout */ "./resources/js/Shared/NestedLayout.tsx"));
 
-var Dashboard = function Dashboard(_a) {
+var Settings = function Settings(_a) {
   var route_name = _a.route_name,
       auth = _a.auth;
   return React.createElement(NestedLayout_1["default"], {
@@ -6823,20 +6823,20 @@ var Dashboard = function Dashboard(_a) {
     route_name: route_name
   }, React.createElement("h1", {
     className: "text-lg leading-6 font-medium text-cool-gray-900"
-  }, "Dashboard"), React.createElement("div", {
+  }, "Settings"), React.createElement("div", {
     className: "py-4"
   }, React.createElement("div", {
     className: "border-4 border-dashed border-gray-200 rounded-lg h-96"
   })));
 };
 
-Dashboard.layout = function (page) {
+Settings.layout = function (page) {
   return React.createElement(Layout_1["default"], {
     children: page
   });
 };
 
-exports.default = Dashboard;
+exports.default = Settings;
 
 /***/ }),
 
