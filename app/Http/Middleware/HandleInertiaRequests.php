@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -36,8 +38,18 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request)
     {
+        $routeName = explode('/', URL::current());
         return array_merge(parent::share($request), [
-            //
+            // Lazily
+            'auth' => function () {
+                return [
+                    'user' => Auth::user() ? [
+                        'name' => Auth::user()->full_name,
+                        'two_factor_enabled' => !is_null(Auth::user()->two_factor_secret)
+                    ] : null
+                ];
+            },
+            'route_name' => isset($routeName[3]) ? $routeName[3] : '',
         ]);
     }
 }
