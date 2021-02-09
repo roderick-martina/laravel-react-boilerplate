@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Dashboard\DashboardController;
+use App\Http\Controllers\Settings\SettingsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -32,6 +33,13 @@ Route::middleware(['auth', 'verified'])
             ->prefix('dashboard')
             ->group(function () {
                 Route::get('/', [DashboardController::class, 'index'])->name('index');
+            });
+
+        // Settings routes...
+        Route::name('settings.')
+            ->prefix('settings')
+            ->group(function () {
+                Route::get('/', [SettingsController::class, 'index'])->name('index');
             });
     });
 
