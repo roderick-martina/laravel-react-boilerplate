@@ -18,7 +18,7 @@ mix.postCss('resources/css/app.css', 'public/css', [
 ])
 mix.version();
 
-const domain = 'repo-share.test';
+const domain = 'laravel-react-boilerplate.test';
 // const homedir = require('os').homedir();
 
 // The mix script:
