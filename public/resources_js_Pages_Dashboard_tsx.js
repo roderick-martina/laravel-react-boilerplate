@@ -812,6 +812,7 @@ function TransitionChild(props) {
 }
 
 function Transition(props) {
+  // @ts-expect-error
   var show = props.show,
       _props$appear = props.appear,
       appear = _props$appear === void 0 ? false : _props$appear,
@@ -7923,14 +7924,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AnimateLayoutFeature": () => (/* binding */ AnimateLayout),
 /* harmony export */   "AnimatePresence": () => (/* binding */ AnimatePresence),
 /* harmony export */   "AnimateSharedLayout": () => (/* binding */ AnimateSharedLayout),
-/* harmony export */   "AnimationControls": () => (/* binding */ AnimationControls),
 /* harmony export */   "AnimationFeature": () => (/* binding */ Animation),
 /* harmony export */   "DragControls": () => (/* binding */ DragControls),
 /* harmony export */   "DragFeature": () => (/* binding */ Drag),
 /* harmony export */   "ExitFeature": () => (/* binding */ Exit),
 /* harmony export */   "FramerTreeLayoutContext": () => (/* binding */ FramerTreeLayoutContext),
 /* harmony export */   "GesturesFeature": () => (/* binding */ Gestures),
-/* harmony export */   "HTMLVisualElement": () => (/* binding */ HTMLVisualElement),
 /* harmony export */   "LayoutGroupContext": () => (/* binding */ LayoutGroupContext),
 /* harmony export */   "MotionConfig": () => (/* binding */ MotionConfig),
 /* harmony export */   "MotionConfigContext": () => (/* binding */ MotionConfigContext),
@@ -7943,6 +7942,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "animateVisualElement": () => (/* binding */ animateVisualElement),
 /* harmony export */   "animationControls": () => (/* binding */ animationControls),
 /* harmony export */   "createBatcher": () => (/* binding */ createBatcher),
+/* harmony export */   "createCrossfader": () => (/* binding */ createCrossfader),
 /* harmony export */   "createDomMotionComponent": () => (/* binding */ createDomMotionComponent),
 /* harmony export */   "createMotionComponent": () => (/* binding */ createMotionComponent),
 /* harmony export */   "isValidMotionProp": () => (/* binding */ isValidMotionProp),
@@ -7958,7 +7958,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "useDomEvent": () => (/* binding */ useDomEvent),
 /* harmony export */   "useDragControls": () => (/* binding */ useDragControls),
 /* harmony export */   "useElementScroll": () => (/* binding */ useElementScroll),
-/* harmony export */   "useExternalRef": () => (/* binding */ useExternalRef),
 /* harmony export */   "useGestures": () => (/* binding */ useGestures),
 /* harmony export */   "useIsPresent": () => (/* binding */ useIsPresent),
 /* harmony export */   "useMotionTemplate": () => (/* binding */ useMotionTemplate),
@@ -7969,8 +7968,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "useSpring": () => (/* binding */ useSpring),
 /* harmony export */   "useTapGesture": () => (/* binding */ useTapGesture),
 /* harmony export */   "useTransform": () => (/* binding */ useTransform),
-/* harmony export */   "useVariantContext": () => (/* binding */ useVariantContext),
-/* harmony export */   "useViewportScroll": () => (/* binding */ useViewportScroll)
+/* harmony export */   "useViewportScroll": () => (/* binding */ useViewportScroll),
+/* harmony export */   "visualElement": () => (/* binding */ visualElement)
 /* harmony export */ });
 /* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! tslib */ "./node_modules/framer-motion/node_modules/tslib/tslib.es6.js");
 /* harmony import */ var framesync__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! framesync */ "./node_modules/framesync/dist/framesync.es.js");
@@ -7985,50 +7984,343 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-var isRefObject = function (ref) {
-    return typeof ref === "object" && ref.hasOwnProperty("current");
-};
+var Presence;
+(function (Presence) {
+    Presence[Presence["Entering"] = 0] = "Entering";
+    Presence[Presence["Present"] = 1] = "Present";
+    Presence[Presence["Exiting"] = 2] = "Exiting";
+})(Presence || (Presence = {}));
+var VisibilityAction;
+(function (VisibilityAction) {
+    VisibilityAction[VisibilityAction["Hide"] = 0] = "Hide";
+    VisibilityAction[VisibilityAction["Show"] = 1] = "Show";
+})(VisibilityAction || (VisibilityAction = {}));
+
+// Call a handler once for each axis
+function eachAxis(handler) {
+    return [handler("x"), handler("y")];
+}
+
+function noop(any) {
+    return any;
+}
 
 /**
- * A generic subscription manager.
+ * Bounding boxes tend to be defined as top, left, right, bottom. For various operations
+ * it's easier to consider each axis individually. This function returns a bounding box
+ * as a map of single-axis min/max values.
  */
-var SubscriptionManager = /** @class */ (function () {
-    function SubscriptionManager() {
-        this.subscriptions = new Set();
+function convertBoundingBoxToAxisBox(_a) {
+    var top = _a.top, left = _a.left, right = _a.right, bottom = _a.bottom;
+    return {
+        x: { min: left, max: right },
+        y: { min: top, max: bottom },
+    };
+}
+function convertAxisBoxToBoundingBox(_a) {
+    var x = _a.x, y = _a.y;
+    return {
+        top: y.min,
+        bottom: y.max,
+        left: x.min,
+        right: x.max,
+    };
+}
+/**
+ * Applies a TransformPoint function to a bounding box. TransformPoint is usually a function
+ * provided by Framer to allow measured points to be corrected for device scaling. This is used
+ * when measuring DOM elements and DOM event points.
+ */
+function transformBoundingBox(_a, transformPoint) {
+    var top = _a.top, left = _a.left, bottom = _a.bottom, right = _a.right;
+    if (transformPoint === void 0) { transformPoint = noop; }
+    var topLeft = transformPoint({ x: left, y: top });
+    var bottomRight = transformPoint({ x: right, y: bottom });
+    return {
+        top: topLeft.y,
+        left: topLeft.x,
+        bottom: bottomRight.y,
+        right: bottomRight.x,
+    };
+}
+/**
+ * Create an empty axis box of zero size
+ */
+function axisBox() {
+    return { x: { min: 0, max: 1 }, y: { min: 0, max: 1 } };
+}
+function copyAxisBox(box) {
+    return {
+        x: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, box.x),
+        y: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, box.y),
+    };
+}
+/**
+ * Create an empty box delta
+ */
+var zeroDelta = {
+    translate: 0,
+    scale: 1,
+    origin: 0,
+    originPoint: 0,
+};
+function delta() {
+    return {
+        x: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, zeroDelta),
+        y: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, zeroDelta),
+    };
+}
+
+/**
+ * Reset an axis to the provided origin box.
+ *
+ * This is a mutative operation.
+ */
+function resetAxis(axis, originAxis) {
+    axis.min = originAxis.min;
+    axis.max = originAxis.max;
+}
+/**
+ * Reset a box to the provided origin box.
+ *
+ * This is a mutative operation.
+ */
+function resetBox(box, originBox) {
+    resetAxis(box.x, originBox.x);
+    resetAxis(box.y, originBox.y);
+}
+/**
+ * Scales a point based on a factor and an originPoint
+ */
+function scalePoint(point, scale, originPoint) {
+    var distanceFromOrigin = point - originPoint;
+    var scaled = scale * distanceFromOrigin;
+    return originPoint + scaled;
+}
+/**
+ * Applies a translate/scale delta to a point
+ */
+function applyPointDelta(point, translate, scale, originPoint, boxScale) {
+    if (boxScale !== undefined) {
+        point = scalePoint(point, boxScale, originPoint);
     }
-    SubscriptionManager.prototype.add = function (handler) {
-        var _this = this;
-        this.subscriptions.add(handler);
-        return function () { return void _this.subscriptions.delete(handler); };
-    };
-    SubscriptionManager.prototype.notify = function (
-    /**
-     * Using ...args would be preferable but it's array creation and this
-     * might be fired every frame.
-     */
-    a, b, c) {
-        var e_1, _a;
-        if (!this.subscriptions.size)
-            return;
-        try {
-            for (var _b = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__values)(this.subscriptions), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var handler = _c.value;
-                handler(a, b, c);
+    return scalePoint(point, scale, originPoint) + translate;
+}
+/**
+ * Applies a translate/scale delta to an axis
+ */
+function applyAxisDelta(axis, translate, scale, originPoint, boxScale) {
+    if (translate === void 0) { translate = 0; }
+    if (scale === void 0) { scale = 1; }
+    axis.min = applyPointDelta(axis.min, translate, scale, originPoint, boxScale);
+    axis.max = applyPointDelta(axis.max, translate, scale, originPoint, boxScale);
+}
+/**
+ * Applies a translate/scale delta to a box
+ */
+function applyBoxDelta(box, _a) {
+    var x = _a.x, y = _a.y;
+    applyAxisDelta(box.x, x.translate, x.scale, x.originPoint);
+    applyAxisDelta(box.y, y.translate, y.scale, y.originPoint);
+}
+/**
+ * Apply a transform to an axis from the latest resolved motion values.
+ * This function basically acts as a bridge between a flat motion value map
+ * and applyAxisDelta
+ */
+function applyAxisTransforms(final, axis, transforms, _a) {
+    var _b = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(_a, 3), key = _b[0], scaleKey = _b[1], originKey = _b[2];
+    // Copy the current axis to the final axis before mutation
+    final.min = axis.min;
+    final.max = axis.max;
+    var axisOrigin = transforms[originKey] !== undefined ? transforms[originKey] : 0.5;
+    var originPoint = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(axis.min, axis.max, axisOrigin);
+    // Apply the axis delta to the final axis
+    applyAxisDelta(final, transforms[key], transforms[scaleKey], originPoint, transforms.scale);
+}
+/**
+ * The names of the motion values we want to apply as translation, scale and origin.
+ */
+var xKeys = ["x", "scaleX", "originX"];
+var yKeys = ["y", "scaleY", "originY"];
+/**
+ * Apply a transform to a box from the latest resolved motion values.
+ */
+function applyBoxTransforms(finalBox, box, transforms) {
+    applyAxisTransforms(finalBox.x, box.x, transforms, xKeys);
+    applyAxisTransforms(finalBox.y, box.y, transforms, yKeys);
+}
+/**
+ * Remove a delta from a point. This is essentially the steps of applyPointDelta in reverse
+ */
+function removePointDelta(point, translate, scale, originPoint, boxScale) {
+    point -= translate;
+    point = scalePoint(point, 1 / scale, originPoint);
+    if (boxScale !== undefined) {
+        point = scalePoint(point, 1 / boxScale, originPoint);
+    }
+    return point;
+}
+/**
+ * Remove a delta from an axis. This is essentially the steps of applyAxisDelta in reverse
+ */
+function removeAxisDelta(axis, translate, scale, origin, boxScale) {
+    if (translate === void 0) { translate = 0; }
+    if (scale === void 0) { scale = 1; }
+    if (origin === void 0) { origin = 0.5; }
+    var originPoint = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(axis.min, axis.max, origin) - translate;
+    axis.min = removePointDelta(axis.min, translate, scale, originPoint, boxScale);
+    axis.max = removePointDelta(axis.max, translate, scale, originPoint, boxScale);
+}
+/**
+ * Remove a transforms from an axis. This is essentially the steps of applyAxisTransforms in reverse
+ * and acts as a bridge between motion values and removeAxisDelta
+ */
+function removeAxisTransforms(axis, transforms, _a) {
+    var _b = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(_a, 3), key = _b[0], scaleKey = _b[1], originKey = _b[2];
+    removeAxisDelta(axis, transforms[key], transforms[scaleKey], transforms[originKey], transforms.scale);
+}
+/**
+ * Remove a transforms from an box. This is essentially the steps of applyAxisBox in reverse
+ * and acts as a bridge between motion values and removeAxisDelta
+ */
+function removeBoxTransforms(box, transforms) {
+    removeAxisTransforms(box.x, transforms, xKeys);
+    removeAxisTransforms(box.y, transforms, yKeys);
+}
+/**
+ * Apply a tree of deltas to a box. We do this to calculate the effect of all the transforms
+ * in a tree upon our box before then calculating how to project it into our desired viewport-relative box
+ *
+ * This is the final nested loop within updateLayoutDelta for future refactoring
+ */
+function applyTreeDeltas(box, treeScale, treePath) {
+    var treeLength = treePath.length;
+    if (!treeLength)
+        return;
+    // Reset the treeScale
+    treeScale.x = treeScale.y = 1;
+    for (var i = 0; i < treeLength; i++) {
+        var delta = treePath[i].getLayoutState().delta;
+        // Incoporate each ancestor's scale into a culmulative treeScale for this component
+        treeScale.x *= delta.x.scale;
+        treeScale.y *= delta.y.scale;
+        // Apply each ancestor's calculated delta into this component's recorded layout box
+        applyBoxDelta(box, delta);
+    }
+}
+
+var clampProgress = function (v) { return (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.clamp)(0, 1, v); };
+/**
+ * Returns true if the provided value is within maxDistance of the provided target
+ */
+function isNear(value, target, maxDistance) {
+    if (target === void 0) { target = 0; }
+    if (maxDistance === void 0) { maxDistance = 0.01; }
+    return (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.distance)(value, target) < maxDistance;
+}
+function calcLength(axis) {
+    return axis.max - axis.min;
+}
+/**
+ * Calculate a transform origin relative to the source axis, between 0-1, that results
+ * in an asthetically pleasing scale/transform needed to project from source to target.
+ */
+function calcOrigin(source, target) {
+    var origin = 0.5;
+    var sourceLength = calcLength(source);
+    var targetLength = calcLength(target);
+    if (targetLength > sourceLength) {
+        origin = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.progress)(target.min, target.max - sourceLength, source.min);
+    }
+    else if (sourceLength > targetLength) {
+        origin = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.progress)(source.min, source.max - targetLength, target.min);
+    }
+    return clampProgress(origin);
+}
+/**
+ * Update the AxisDelta with a transform that projects source into target.
+ *
+ * The transform `origin` is optional. If not provided, it'll be automatically
+ * calculated based on the relative positions of the two bounding boxes.
+ */
+function updateAxisDelta(delta, source, target, origin) {
+    if (origin === void 0) { origin = 0.5; }
+    delta.origin = origin;
+    delta.originPoint = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(source.min, source.max, delta.origin);
+    delta.scale = calcLength(target) / calcLength(source);
+    if (isNear(delta.scale, 1, 0.0001))
+        delta.scale = 1;
+    delta.translate =
+        (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(target.min, target.max, delta.origin) - delta.originPoint;
+    if (isNear(delta.translate))
+        delta.translate = 0;
+}
+/**
+ * Update the BoxDelta with a transform that projects the source into the target.
+ *
+ * The transform `origin` is optional. If not provided, it'll be automatically
+ * calculated based on the relative positions of the two bounding boxes.
+ */
+function updateBoxDelta(delta, source, target, origin) {
+    updateAxisDelta(delta.x, source.x, target.x, defaultOrigin(origin.originX));
+    updateAxisDelta(delta.y, source.y, target.y, defaultOrigin(origin.originY));
+}
+/**
+ * Currently this only accepts numerical origins, measured as 0-1, but could
+ * accept pixel values by comparing to the target axis.
+ */
+function defaultOrigin(origin) {
+    return typeof origin === "number" ? origin : 0.5;
+}
+
+function isRefObject(ref) {
+    return (typeof ref === "object" &&
+        Object.prototype.hasOwnProperty.call(ref, "current"));
+}
+
+function addUniqueItem(arr, item) {
+    arr.indexOf(item) === -1 && arr.push(item);
+}
+function removeItem(arr, item) {
+    var index = arr.indexOf(item);
+    index > -1 && arr.splice(index, 1);
+}
+
+function subscriptionManager() {
+    var subscriptions = [];
+    return {
+        add: function (handler) {
+            addUniqueItem(subscriptions, handler);
+            return function () { return removeItem(subscriptions, handler); };
+        },
+        notify: function (a, b, c) {
+            var numSubscriptions = subscriptions.length;
+            if (!numSubscriptions)
+                return;
+            if (numSubscriptions === 1) {
+                /**
+                 * If there's only a single handler we can just call it without invoking a loop.
+                 */
+                subscriptions[0](a, b, c);
             }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            else {
+                for (var i = 0; i < numSubscriptions; i++) {
+                    /**
+                     * Check whether the handler exists before firing as it's possible
+                     * the subscriptions were modified during this loop running.
+                     */
+                    var handler = subscriptions[i];
+                    handler && handler(a, b, c);
+                }
             }
-            finally { if (e_1) throw e_1.error; }
-        }
+        },
+        getSize: function () { return subscriptions.length; },
+        clear: function () {
+            subscriptions.length = 0;
+        },
     };
-    SubscriptionManager.prototype.clear = function () {
-        this.subscriptions.clear();
-    };
-    return SubscriptionManager;
-}());
+}
 
 var isFloat = function (value) {
     return !isNaN(parseFloat(value));
@@ -8066,13 +8358,13 @@ var MotionValue = /** @class */ (function () {
          *
          * @internal
          */
-        this.updateSubscribers = new SubscriptionManager();
+        this.updateSubscribers = subscriptionManager();
         /**
          * Functions to notify when the `MotionValue` updates and `render` is set to `true`.
          *
          * @internal
          */
-        this.renderSubscribers = new SubscriptionManager();
+        this.renderSubscribers = subscriptionManager();
         /**
          * Tracks whether this value can output a velocity. Currently this is only true
          * if the value is numerical, but we might be able to widen the scope here and support
@@ -8123,6 +8415,7 @@ var MotionValue = /** @class */ (function () {
                 _this.prev = _this.current;
             }
         };
+        this.hasAnimated = false;
         this.current = init;
         this.canTrackVelocity = isFloat(this.current);
     }
@@ -8302,6 +8595,7 @@ var MotionValue = /** @class */ (function () {
         var _this = this;
         this.stop();
         return new Promise(function (resolve) {
+            _this.hasAnimated = true;
             _this.stopAnimation = animation(resolve);
         }).then(function () { return _this.clearAnimation(); });
     };
@@ -8349,289 +8643,175 @@ function motionValue(init) {
     return new MotionValue(init);
 }
 
-/**
- * VisualElement is an abstract class that provides a generic animation-optimised interface to the
- * underlying renderer.
- *
- * Currently many features interact directly with HTMLVisualElement/SVGVisualElement
- * but the idea is we can create, for instance, a ThreeVisualElement that extends
- * VisualElement and we can quickly offer all the same features.
- */
-var VisualElement = /** @class */ (function () {
-    function VisualElement(parent, ref) {
-        var _this = this;
-        // An iterable list of current children
-        this.children = new Set();
-        this.isHoverEventsEnabled = true;
-        /**
-         * A set of values that we animate back to when a value is cleared of all overrides.
-         */
-        this.baseTarget = {};
-        // The latest resolved MotionValues
-        this.latest = {};
-        // A map of MotionValues used to animate this element
-        this.values = new Map();
-        // Unsubscription callbacks for MotionValue subscriptions
-        this.valueSubscriptions = new Map();
-        // A configuration for this VisualElement, each derived class can extend this.
-        this.config = {};
-        this.isMounted = false;
-        // A pre-bound call to the user-provided `onUpdate` callback. This won't
-        // be called more than once per frame.
-        this.update = function () { return _this.config.onUpdate(_this.latest); };
-        // Pre-bound version of render
-        this.triggerRender = function () { return _this.render(); };
-        // This function gets passed to the rendered component's `ref` prop
-        // and is used to mount/unmount the VisualElement
-        this.ref = function (element) {
-            element ? _this.mount(element) : _this.unmount();
-            if (!_this.externalRef)
-                return;
-            if (typeof _this.externalRef === "function") {
-                _this.externalRef(element);
-            }
-            else if (isRefObject(_this.externalRef)) {
-                _this.externalRef.current = element;
-            }
-        };
-        // Create a relationship with the provided parent.
-        this.parent = parent;
-        this.rootParent = parent ? parent.rootParent : this;
-        this.treePath = parent ? (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(parent.treePath, [parent]) : [];
-        // Calculate the depth of this node in the VisualElement graph
-        this.depth = parent ? parent.depth + 1 : 0;
-        // A reference to any externally-defined React ref. This might live better
-        // outside the VisualElement and be handled in a hook.
-        this.externalRef = ref;
-    }
-    /**
-     * Temporarily suspend hover events while we remove transforms in order to measure the layout.
-     *
-     * This seems like an odd bit of scheduling but what we're doing is saying after
-     * the next render, wait 10 milliseconds before reenabling hover events. Waiting until
-     * the next frame results in missed, valid hover events. But triggering on the postRender
-     * frame is too soon to avoid triggering events with layout measurements.
-     *
-     * Note: If we figure out a way of measuring layout while transforms remain applied, this can be removed.
-     */
-    VisualElement.prototype.suspendHoverEvents = function () {
-        var _this = this;
-        this.isHoverEventsEnabled = false;
-        framesync__WEBPACK_IMPORTED_MODULE_0__.default.postRender(function () {
-            return setTimeout(function () { return (_this.isHoverEventsEnabled = true); }, 10);
-        });
-    };
-    VisualElement.prototype.getVariantPayload = function () {
-        return this.config.custom;
-    };
-    VisualElement.prototype.getVariant = function (label) {
-        var _a;
-        return (_a = this.config.variants) === null || _a === void 0 ? void 0 : _a[label];
-    };
-    VisualElement.prototype.addVariantChild = function (visualElement) {
-        var _this = this;
-        if (!this.variantChildren)
-            this.variantChildren = new Set();
-        this.variantChildren.add(visualElement);
-        return function () { return _this.variantChildren.delete(visualElement); };
-    };
-    VisualElement.prototype.addVariantChildOrder = function (visualElement) {
-        if (!this.variantChildrenOrder)
-            this.variantChildrenOrder = new Set();
-        this.variantChildrenOrder.add(visualElement);
-    };
-    VisualElement.prototype.onAnimationStart = function () {
-        var _a, _b;
-        (_b = (_a = this.config).onAnimationStart) === null || _b === void 0 ? void 0 : _b.call(_a);
-    };
-    VisualElement.prototype.onAnimationComplete = function () {
-        var _a, _b;
-        this.isMounted && ((_b = (_a = this.config).onAnimationComplete) === null || _b === void 0 ? void 0 : _b.call(_a));
-    };
-    VisualElement.prototype.getDefaultTransition = function () {
-        return this.config.transition;
-    };
-    VisualElement.prototype.subscribe = function (child) {
-        var _this = this;
-        this.children.add(child);
-        return function () { return _this.children.delete(child); };
-    };
-    // Check whether this element has a MotionValue of the provided key
-    VisualElement.prototype.hasValue = function (key) {
-        return this.values.has(key);
-    };
-    // Add a MotionValue
-    VisualElement.prototype.addValue = function (key, value) {
-        if (this.hasValue(key))
-            this.removeValue(key);
-        this.values.set(key, value);
-        this.setSingleStaticValue(key, value.get());
-        this.subscribeToValue(key, value);
-    };
-    // Remove a MotionValue
-    VisualElement.prototype.removeValue = function (key) {
-        var _a;
-        (_a = this.valueSubscriptions.get(key)) === null || _a === void 0 ? void 0 : _a();
-        this.valueSubscriptions.delete(key);
-        this.values.delete(key);
-        delete this.latest[key];
-    };
-    VisualElement.prototype.getValue = function (key, defaultValue) {
-        var value = this.values.get(key);
-        if (value === undefined && defaultValue !== undefined) {
-            value = new MotionValue(defaultValue);
-            this.addValue(key, value);
-        }
-        return value;
-    };
-    // Iterate over all MotionValues
-    VisualElement.prototype.forEachValue = function (callback) {
-        this.values.forEach(callback);
-    };
-    // Get the underlying rendered instance of this VisualElement. For instance in
-    // HTMLVisualElement this will be a HTMLElement.
-    VisualElement.prototype.getInstance = function () {
-        return this.element;
-    };
-    VisualElement.prototype.updateConfig = function (config) {
-        if (config === void 0) { config = {}; }
-        this.config = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, config);
-    };
-    VisualElement.prototype.getBaseValue = function (key, _props) {
-        return this.baseTarget[key];
-    };
-    // Set a single `latest` value
-    VisualElement.prototype.setSingleStaticValue = function (key, value) {
-        this.latest[key] = value;
-    };
-    // Statically set values to `latest` without needing a MotionValue
-    VisualElement.prototype.setStaticValues = function (values, value) {
-        if (typeof values === "string") {
-            this.setSingleStaticValue(values, value);
-        }
-        else {
-            for (var key in values) {
-                this.setSingleStaticValue(key, values[key]);
-            }
-        }
-    };
-    VisualElement.prototype.scheduleRender = function () {
-        framesync__WEBPACK_IMPORTED_MODULE_0__.default.render(this.triggerRender, false, true);
-    };
-    VisualElement.prototype.scheduleUpdateLayoutDelta = function () {
-        framesync__WEBPACK_IMPORTED_MODULE_0__.default.preRender(this.rootParent.updateLayoutDelta, false, true);
-    };
-    VisualElement.prototype.subscribeToValue = function (key, value) {
-        var _this = this;
-        var onChange = function (latest) {
-            _this.setSingleStaticValue(key, latest);
-            // Schedule onUpdate if we have an onUpdate listener and the component has mounted
-            _this.element &&
-                _this.config.onUpdate &&
-                framesync__WEBPACK_IMPORTED_MODULE_0__.default.update(_this.update, false, true);
-        };
-        var onRender = function () {
-            _this.element && _this.scheduleRender();
-        };
-        var unsubscribeOnChange = value.onChange(onChange);
-        var unsubscribeOnRender = value.onRenderRequest(onRender);
-        this.valueSubscriptions.set(key, function () {
-            unsubscribeOnChange();
-            unsubscribeOnRender();
-        });
-    };
-    // Mount the VisualElement with the actual DOM element
-    VisualElement.prototype.mount = function (element) {
-        (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(!!element, "No ref found. Ensure components created with motion.custom forward refs using React.forwardRef");
-        if (this.parent) {
-            this.removeFromParent = this.parent.subscribe(this);
-        }
-        /**
-         * Save the element to this.element as a semantic API, this.current to the VisualElement
-         * is compatible with existing RefObject APIs.
-         */
-        this.element = this.current = element;
-    };
-    // Unmount the VisualElement and cancel any scheduled updates
-    VisualElement.prototype.unmount = function () {
-        var _this = this;
-        this.forEachValue(function (_, key) { return _this.removeValue(key); });
-        framesync__WEBPACK_IMPORTED_MODULE_0__.cancelSync.update(this.update);
-        framesync__WEBPACK_IMPORTED_MODULE_0__.cancelSync.render(this.render);
-        this.removeFromParent && this.removeFromParent();
-    };
-    return VisualElement;
-}());
-
-function noop(any) {
-    return any;
-}
-
-/**
- * Bounding boxes tend to be defined as top, left, right, bottom. For various operations
- * it's easier to consider each axis individually. This function returns a bounding box
- * as a map of single-axis min/max values.
- */
-function convertBoundingBoxToAxisBox(_a) {
-    var top = _a.top, left = _a.left, right = _a.right, bottom = _a.bottom;
-    return {
-        x: { min: left, max: right },
-        y: { min: top, max: bottom },
-    };
-}
-function convertAxisBoxToBoundingBox(_a) {
-    var x = _a.x, y = _a.y;
-    return {
-        top: y.min,
-        bottom: y.max,
-        left: x.min,
-        right: x.max,
-    };
-}
-/**
- * Applies a TransformPoint function to a bounding box. TransformPoint is usually a function
- * provided by Framer to allow measured points to be corrected for device scaling. This is used
- * when measuring DOM elements and DOM event points.
- */
-function transformBoundingBox(_a, transformPoint) {
-    var top = _a.top, left = _a.left, bottom = _a.bottom, right = _a.right;
-    if (transformPoint === void 0) { transformPoint = noop; }
-    var topLeft = transformPoint({ x: left, y: top });
-    var bottomRight = transformPoint({ x: right, y: bottom });
-    return {
-        top: topLeft.y,
-        left: topLeft.x,
-        bottom: bottomRight.y,
-        right: bottomRight.x,
-    };
-}
-/**
- * Create an empty axis box of zero size
- */
-function axisBox() {
-    return { x: { min: 0, max: 1 }, y: { min: 0, max: 1 } };
-}
-function copyAxisBox(box) {
-    return {
-        x: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, box.x),
-        y: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, box.y),
-    };
-}
-/**
- * Create an empty box delta
- */
-var zeroDelta = {
-    translate: 0,
-    scale: 1,
-    origin: 0,
-    originPoint: 0,
+var isMotionValue = function (value) {
+    return value instanceof MotionValue;
 };
-function delta() {
-    return {
-        x: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, zeroDelta),
-        y: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, zeroDelta),
-    };
+
+/**
+ * A list of all transformable axes. We'll use this list to generated a version
+ * of each axes for each transform.
+ */
+var transformAxes = ["", "X", "Y", "Z"];
+/**
+ * An ordered array of each transformable value. By default, transform values
+ * will be sorted to this order.
+ */
+var order = ["perspective", "translate", "scale", "rotate", "skew"];
+/**
+ * Generate a list of every possible transform key.
+ */
+var transformProps = ["transformPerspective", "x", "y", "z"];
+order.forEach(function (operationKey) {
+    transformAxes.forEach(function (axesKey) {
+        var key = operationKey + axesKey;
+        transformProps.push(key);
+    });
+});
+/**
+ * A function to use with Array.sort to sort transform keys by their default order.
+ */
+function sortTransformProps(a, b) {
+    return transformProps.indexOf(a) - transformProps.indexOf(b);
 }
+/**
+ * A quick lookup for transform props.
+ */
+var transformPropSet = new Set(transformProps);
+function isTransformProp(key) {
+    return transformPropSet.has(key);
+}
+/**
+ * A quick lookup for transform origin props
+ */
+var transformOriginProps = new Set(["originX", "originY", "originZ"]);
+function isTransformOriginProp(key) {
+    return transformOriginProps.has(key);
+}
+
+/**
+ * Converts seconds to milliseconds
+ *
+ * @param seconds - Time in seconds.
+ * @return milliseconds - Converted time in milliseconds.
+ */
+var secondsToMilliseconds = function (seconds) { return seconds * 1000; };
+
+var easingLookup = {
+    linear: popmotion__WEBPACK_IMPORTED_MODULE_4__.linear,
+    easeIn: popmotion__WEBPACK_IMPORTED_MODULE_4__.easeIn,
+    easeInOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.easeInOut,
+    easeOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.easeOut,
+    circIn: popmotion__WEBPACK_IMPORTED_MODULE_4__.circIn,
+    circInOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.circInOut,
+    circOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.circOut,
+    backIn: popmotion__WEBPACK_IMPORTED_MODULE_4__.backIn,
+    backInOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.backInOut,
+    backOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.backOut,
+    anticipate: popmotion__WEBPACK_IMPORTED_MODULE_4__.anticipate,
+    bounceIn: popmotion__WEBPACK_IMPORTED_MODULE_4__.bounceIn,
+    bounceInOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.bounceInOut,
+    bounceOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.bounceOut,
+};
+var easingDefinitionToFunction = function (definition) {
+    if (Array.isArray(definition)) {
+        // If cubic bezier definition, create bezier curve
+        (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(definition.length === 4, "Cubic bezier arrays must contain four numerical values.");
+        var _a = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(definition, 4), x1 = _a[0], y1 = _a[1], x2 = _a[2], y2 = _a[3];
+        return (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.cubicBezier)(x1, y1, x2, y2);
+    }
+    else if (typeof definition === "string") {
+        // Else lookup from table
+        (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(easingLookup[definition] !== undefined, "Invalid easing type '" + definition + "'");
+        return easingLookup[definition];
+    }
+    return definition;
+};
+var isEasingArray = function (ease) {
+    return Array.isArray(ease) && typeof ease[0] !== "number";
+};
+
+/**
+ * Check if a value is animatable. Examples:
+ *
+ * ✅: 100, "100px", "#fff"
+ * ❌: "block", "url(2.jpg)"
+ * @param value
+ *
+ * @internal
+ */
+var isAnimatable = function (key, value) {
+    // If the list of keys tat might be non-animatable grows, replace with Set
+    if (key === "zIndex")
+        return false;
+    // If it's a number or a keyframes array, we can animate it. We might at some point
+    // need to do a deep isAnimatable check of keyframes, or let Popmotion handle this,
+    // but for now lets leave it like this for performance reasons
+    if (typeof value === "number" || Array.isArray(value))
+        return true;
+    if (typeof value === "string" && // It's animatable if we have a string
+        style_value_types__WEBPACK_IMPORTED_MODULE_5__.complex.test(value) && // And it contains numbers and/or colors
+        !value.startsWith("url(") // Unless it starts with "url("
+    ) {
+        return true;
+    }
+    return false;
+};
+
+var isKeyframesTarget = function (v) {
+    return Array.isArray(v);
+};
+
+var underDampedSpring = function () { return ({
+    type: "spring",
+    stiffness: 500,
+    damping: 25,
+    restDelta: 0.5,
+    restSpeed: 10,
+}); };
+var criticallyDampedSpring = function (to) { return ({
+    type: "spring",
+    stiffness: 550,
+    damping: to === 0 ? 2 * Math.sqrt(550) : 30,
+    restDelta: 0.01,
+    restSpeed: 10,
+}); };
+var linearTween = function () { return ({
+    type: "keyframes",
+    ease: "linear",
+    duration: 0.3,
+}); };
+var keyframes = function (values) { return ({
+    type: "keyframes",
+    duration: 0.8,
+    values: values,
+}); };
+var defaultTransitions = {
+    x: underDampedSpring,
+    y: underDampedSpring,
+    z: underDampedSpring,
+    rotate: underDampedSpring,
+    rotateX: underDampedSpring,
+    rotateY: underDampedSpring,
+    rotateZ: underDampedSpring,
+    scaleX: criticallyDampedSpring,
+    scaleY: criticallyDampedSpring,
+    scale: criticallyDampedSpring,
+    opacity: linearTween,
+    backgroundColor: linearTween,
+    color: linearTween,
+    default: criticallyDampedSpring,
+};
+var getDefaultTransition = function (valueKey, to) {
+    var transitionFactory;
+    if (isKeyframesTarget(to)) {
+        transitionFactory = keyframes;
+    }
+    else {
+        transitionFactory =
+            defaultTransitions[valueKey] || defaultTransitions.default;
+    }
+    return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ to: to }, transitionFactory(to));
+};
 
 /**
  * ValueType for "auto"
@@ -8770,147 +8950,549 @@ function getAnimatableNone(key, value) {
 }
 
 /**
- * A list of all transformable axes. We'll use this list to generated a version
- * of each axes for each transform.
+ * Decide whether a transition is defined on a given Transition.
+ * This filters out orchestration options and returns true
+ * if any options are left.
  */
-var transformAxes = ["", "X", "Y", "Z"];
+function isTransitionDefined(_a) {
+    var when = _a.when, delay = _a.delay, delayChildren = _a.delayChildren, staggerChildren = _a.staggerChildren, staggerDirection = _a.staggerDirection, repeat = _a.repeat, repeatType = _a.repeatType, repeatDelay = _a.repeatDelay, from = _a.from, transition = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["when", "delay", "delayChildren", "staggerChildren", "staggerDirection", "repeat", "repeatType", "repeatDelay", "from"]);
+    return !!Object.keys(transition).length;
+}
+var legacyRepeatWarning = false;
 /**
- * An ordered array of each transformable value. By default, transform values
- * will be sorted to this order.
+ * Convert Framer Motion's Transition type into Popmotion-compatible options.
  */
-var order = ["perspective", "translate", "scale", "rotate", "skew"];
+function convertTransitionToAnimationOptions(_a) {
+    var ease = _a.ease, times = _a.times, yoyo = _a.yoyo, flip = _a.flip, loop = _a.loop, transition = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["ease", "times", "yoyo", "flip", "loop"]);
+    var options = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, transition);
+    if (times)
+        options["offset"] = times;
+    /**
+     * Convert any existing durations from seconds to milliseconds
+     */
+    if (transition.duration)
+        options["duration"] = secondsToMilliseconds(transition.duration);
+    if (transition.repeatDelay)
+        options.repeatDelay = secondsToMilliseconds(transition.repeatDelay);
+    /**
+     * Map easing names to Popmotion's easing functions
+     */
+    if (ease) {
+        options["ease"] = isEasingArray(ease)
+            ? ease.map(easingDefinitionToFunction)
+            : easingDefinitionToFunction(ease);
+    }
+    /**
+     * Support legacy transition API
+     */
+    if (transition.type === "tween")
+        options.type = "keyframes";
+    /**
+     * TODO: These options are officially removed from the API.
+     */
+    if (yoyo || loop || flip) {
+        (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.warning)(!legacyRepeatWarning, "yoyo, loop and flip have been removed from the API. Replace with repeat and repeatType options.");
+        legacyRepeatWarning = true;
+        if (yoyo) {
+            options.repeatType = "reverse";
+        }
+        else if (loop) {
+            options.repeatType = "loop";
+        }
+        else if (flip) {
+            options.repeatType = "mirror";
+        }
+        options.repeat = loop || yoyo || flip || transition.repeat;
+    }
+    /**
+     * TODO: Popmotion 9 has the ability to automatically detect whether to use
+     * a keyframes or spring animation, but does so by detecting velocity and other spring options.
+     * It'd be good to introduce a similar thing here.
+     */
+    if (transition.type !== "spring")
+        options.type = "keyframes";
+    return options;
+}
 /**
- * Generate a list of every possible transform key.
+ * Get the delay for a value by checking Transition with decreasing specificity.
  */
-var transformProps = ["transformPerspective", "x", "y", "z"];
-order.forEach(function (operationKey) {
-    transformAxes.forEach(function (axesKey) {
-        var key = operationKey + axesKey;
-        transformProps.push(key);
+function getDelayFromTransition(transition, key) {
+    var _a, _b, _c, _d, _e;
+    return ((_e = (_d = (_b = (_a = transition[key]) === null || _a === void 0 ? void 0 : _a.delay) !== null && _b !== void 0 ? _b : (_c = transition["default"]) === null || _c === void 0 ? void 0 : _c.delay) !== null && _d !== void 0 ? _d : transition.delay) !== null && _e !== void 0 ? _e : 0);
+}
+function hydrateKeyframes(options) {
+    if (Array.isArray(options.to) && options.to[0] === null) {
+        options.to = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(options.to);
+        options.to[0] = options.from;
+    }
+    return options;
+}
+function getPopmotionAnimationOptions(transition, options, key) {
+    var _a;
+    if (Array.isArray(options.to)) {
+        (_a = transition.duration) !== null && _a !== void 0 ? _a : (transition.duration = 0.8);
+    }
+    hydrateKeyframes(options);
+    /**
+     * Get a default transition if none is determined to be defined.
+     */
+    if (!isTransitionDefined(transition)) {
+        transition = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, transition), getDefaultTransition(key, options.to));
+    }
+    return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, options), convertTransitionToAnimationOptions(transition));
+}
+/**
+ *
+ */
+function getAnimation(key, value, target, transition, onComplete) {
+    var _a;
+    var valueTransition = getValueTransition(transition, key);
+    var origin = (_a = valueTransition.from) !== null && _a !== void 0 ? _a : value.get();
+    var isTargetAnimatable = isAnimatable(key, target);
+    /**
+     * If we're trying to animate from "none", try and get an animatable version
+     * of the target. This could be improved to work both ways.
+     */
+    if (origin === "none" && isTargetAnimatable && typeof target === "string") {
+        origin = getAnimatableNone(key, target);
+    }
+    var isOriginAnimatable = isAnimatable(key, origin);
+    (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.warning)(isOriginAnimatable === isTargetAnimatable, "You are trying to animate " + key + " from \"" + origin + "\" to \"" + target + "\". " + origin + " is not an animatable value - to enable this animation set " + origin + " to a value animatable to " + target + " via the `style` property.");
+    function start() {
+        var options = {
+            from: origin,
+            to: target,
+            velocity: value.getVelocity(),
+            onComplete: onComplete,
+            onUpdate: function (v) { return value.set(v); },
+        };
+        return valueTransition.type === "inertia" ||
+            valueTransition.type === "decay"
+            ? (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.inertia)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, options), valueTransition))
+            : (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.animate)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, getPopmotionAnimationOptions(valueTransition, options, key)), { onUpdate: function (v) {
+                    var _a;
+                    options.onUpdate(v);
+                    (_a = valueTransition.onUpdate) === null || _a === void 0 ? void 0 : _a.call(valueTransition, v);
+                }, onComplete: function () {
+                    var _a;
+                    options.onComplete();
+                    (_a = valueTransition.onComplete) === null || _a === void 0 ? void 0 : _a.call(valueTransition);
+                } }));
+    }
+    function set() {
+        var _a;
+        value.set(target);
+        onComplete();
+        (_a = valueTransition === null || valueTransition === void 0 ? void 0 : valueTransition.onComplete) === null || _a === void 0 ? void 0 : _a.call(valueTransition);
+        return { stop: function () { } };
+    }
+    return !isOriginAnimatable ||
+        !isTargetAnimatable ||
+        valueTransition.type === false
+        ? set
+        : start;
+}
+function getValueTransition(transition, key) {
+    return transition[key] || transition["default"] || transition;
+}
+/**
+ * Start animation on a MotionValue. This function is an interface between
+ * Framer Motion and Popmotion
+ *
+ * @internal
+ */
+function startAnimation(key, value, target, transition) {
+    if (transition === void 0) { transition = {}; }
+    return value.start(function (onComplete) {
+        var delayTimer;
+        var controls;
+        var animation = getAnimation(key, value, target, transition, onComplete);
+        var delay = getDelayFromTransition(transition, key);
+        var start = function () { return (controls = animation()); };
+        if (delay) {
+            delayTimer = setTimeout(start, secondsToMilliseconds(delay));
+        }
+        else {
+            start();
+        }
+        return function () {
+            clearTimeout(delayTimer);
+            controls === null || controls === void 0 ? void 0 : controls.stop();
+        };
     });
-});
-/**
- * A function to use with Array.sort to sort transform keys by their default order.
- */
-function sortTransformProps(a, b) {
-    return transformProps.indexOf(a) - transformProps.indexOf(b);
-}
-/**
- * A quick lookup for transform props.
- */
-var transformPropSet = new Set(transformProps);
-function isTransformProp(key) {
-    return transformPropSet.has(key);
-}
-/**
- * A quick lookup for transform origin props
- */
-var transformOriginProps = new Set(["originX", "originY", "originZ"]);
-function isTransformOriginProp(key) {
-    return transformOriginProps.has(key);
 }
 
-var translateAlias = {
-    x: "translateX",
-    y: "translateY",
-    z: "translateZ",
-    transformPerspective: "perspective",
-};
 /**
- * Build a CSS transform style from individual x/y/scale etc properties.
- *
- * This outputs with a default order of transforms/scales/rotations, this can be customised by
- * providing a transformTemplate function.
+ * Check if value is a numerical string, ie a string that is purely a number eg "100" or "-100.1"
  */
-function buildTransform(transform, transformKeys, transformTemplate, transformIsDefault, enableHardwareAcceleration, allowTransformNone) {
-    if (enableHardwareAcceleration === void 0) { enableHardwareAcceleration = true; }
-    if (allowTransformNone === void 0) { allowTransformNone = true; }
-    // The transform string we're going to build into.
-    var transformString = "";
-    // Transform keys into their default order - this will determine the output order.
-    transformKeys.sort(sortTransformProps);
-    // Track whether the defined transform has a defined z so we don't add a
-    // second to enable hardware acceleration
-    var transformHasZ = false;
-    // Loop over each transform and build them into transformString
-    var numTransformKeys = transformKeys.length;
-    for (var i = 0; i < numTransformKeys; i++) {
-        var key = transformKeys[i];
-        transformString += (translateAlias[key] || key) + "(" + transform[key] + ") ";
-        if (key === "z")
-            transformHasZ = true;
+var isNumericalString = function (v) { return /^\-?\d*\.?\d+$/.test(v); };
+
+var isCustomValue = function (v) {
+    return Boolean(v && typeof v === "object" && v.mix && v.toValue);
+};
+var resolveFinalValueInKeyframes = function (v) {
+    // TODO maybe throw if v.length - 1 is placeholder token?
+    return isKeyframesTarget(v) ? v[v.length - 1] || 0 : v;
+};
+
+/**
+ * Decides if the supplied variable is an array of variant labels
+ */
+function isVariantLabels(v) {
+    return Array.isArray(v);
+}
+/**
+ * Decides if the supplied variable is variant label
+ */
+function isVariantLabel(v) {
+    return typeof v === "string" || isVariantLabels(v);
+}
+/**
+ * Creates an object containing the latest state of every MotionValue on a VisualElement
+ */
+function getCurrent(visualElement) {
+    var current = {};
+    visualElement.forEachValue(function (value, key) { return (current[key] = value.get()); });
+    return current;
+}
+/**
+ * Creates an object containing the latest velocity of every MotionValue on a VisualElement
+ */
+function getVelocity(visualElement) {
+    var velocity = {};
+    visualElement.forEachValue(function (value, key) { return (velocity[key] = value.getVelocity()); });
+    return velocity;
+}
+function resolveVariantFromProps(props, definition, custom, currentValues, currentVelocity) {
+    var _a;
+    if (currentValues === void 0) { currentValues = {}; }
+    if (currentVelocity === void 0) { currentVelocity = {}; }
+    if (typeof definition === "string") {
+        definition = (_a = props.variants) === null || _a === void 0 ? void 0 : _a[definition];
     }
-    if (!transformHasZ && enableHardwareAcceleration) {
-        transformString += "translateZ(0)";
+    return typeof definition === "function"
+        ? definition(custom !== null && custom !== void 0 ? custom : props.custom, currentValues, currentVelocity)
+        : definition;
+}
+/**
+ * Resovles a variant if it's a variant resolver
+ */
+function resolveVariant(visualElement, definition, custom) {
+    var props = visualElement.getProps();
+    return resolveVariantFromProps(props, definition, custom !== null && custom !== void 0 ? custom : props.custom, getCurrent(visualElement), getVelocity(visualElement));
+}
+function checkIfControllingVariants(props) {
+    var _a;
+    return (typeof ((_a = props.animate) === null || _a === void 0 ? void 0 : _a.start) === "function" ||
+        isVariantLabel(props.animate) ||
+        isVariantLabel(props.whileHover) ||
+        isVariantLabel(props.whileDrag) ||
+        isVariantLabel(props.whileTap) ||
+        isVariantLabel(props.whileFocus) ||
+        isVariantLabel(props.exit));
+}
+
+/**
+ * Set VisualElement's MotionValue, creating a new MotionValue for it if
+ * it doesn't exist.
+ */
+function setMotionValue(visualElement, key, value) {
+    if (visualElement.hasValue(key)) {
+        visualElement.getValue(key).set(value);
     }
     else {
-        transformString = transformString.trim();
+        visualElement.addValue(key, motionValue(value));
     }
-    // If we have a custom `transform` template, pass our transform values and
-    // generated transformString to that before returning
-    if (transformTemplate) {
-        transformString = transformTemplate(transform, transformIsDefault ? "" : transformString);
-    }
-    else if (allowTransformNone && transformIsDefault) {
-        transformString = "none";
-    }
-    return transformString;
 }
-/**
- * Build a transformOrigin style. Uses the same defaults as the browser for
- * undefined origins.
- */
-function buildTransformOrigin(_a) {
-    var _b = _a.originX, originX = _b === void 0 ? "50%" : _b, _c = _a.originY, originY = _c === void 0 ? "50%" : _c, _d = _a.originZ, originZ = _d === void 0 ? 0 : _d;
-    return originX + " " + originY + " " + originZ;
+function setTarget(visualElement, definition) {
+    var resolved = resolveVariant(visualElement, definition);
+    var _a = resolved
+        ? visualElement.makeTargetAnimatable(resolved, false)
+        : {}, _b = _a.transitionEnd, transitionEnd = _b === void 0 ? {} : _b, _c = _a.transition, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["transitionEnd", "transition"]);
+    target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, target), transitionEnd);
+    for (var key in target) {
+        var value = resolveFinalValueInKeyframes(target[key]);
+        setMotionValue(visualElement, key, value);
+    }
 }
+function setVariants(visualElement, variantLabels) {
+    var reversedLabels = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(variantLabels).reverse();
+    reversedLabels.forEach(function (key) {
+        var _a;
+        var variant = visualElement.getVariant(key);
+        variant && setTarget(visualElement, variant);
+        (_a = visualElement.variantChildren) === null || _a === void 0 ? void 0 : _a.forEach(function (child) {
+            setVariants(child, variantLabels);
+        });
+    });
+}
+function setValues(visualElement, definition) {
+    if (Array.isArray(definition)) {
+        return setVariants(visualElement, definition);
+    }
+    else if (typeof definition === "string") {
+        return setVariants(visualElement, [definition]);
+    }
+    else {
+        setTarget(visualElement, definition);
+    }
+}
+function checkTargetForNewValues(visualElement, target, origin) {
+    var _a, _b;
+    var _c;
+    var newValueKeys = Object.keys(target).filter(function (key) { return !visualElement.hasValue(key); });
+    var numNewValues = newValueKeys.length;
+    if (!numNewValues)
+        return;
+    for (var i = 0; i < numNewValues; i++) {
+        var key = newValueKeys[i];
+        var targetValue = target[key];
+        var value = null;
+        // If this is a keyframes value, we can attempt to use the first value in the
+        // array as that's going to be the first value of the animation anyway
+        if (Array.isArray(targetValue)) {
+            value = targetValue[0];
+        }
+        // If it isn't a keyframes or the first keyframes value was set as `null`, read the
+        // value from the DOM. It might be worth investigating whether to check props (for SVG)
+        // or props.style (for HTML) if the value exists there before attempting to read.
+        if (value === null) {
+            var readValue = (_a = origin[key]) !== null && _a !== void 0 ? _a : visualElement.readValue(key);
+            value = readValue !== undefined ? readValue : target[key];
+            (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(value !== null, "No initial value for \"" + key + "\" can be inferred. Ensure an initial value for \"" + key + "\" is defined on the component.");
+        }
+        if (typeof value === "string" && isNumericalString(value)) {
+            // If this is a number read as a string, ie "0" or "200", convert it to a number
+            value = parseFloat(value);
+        }
+        else if (!findValueType(value) && style_value_types__WEBPACK_IMPORTED_MODULE_5__.complex.test(targetValue)) {
+            value = getAnimatableNone(key, targetValue);
+        }
+        visualElement.addValue(key, motionValue(value));
+        (_b = (_c = origin)[key]) !== null && _b !== void 0 ? _b : (_c[key] = value);
+        visualElement.setBaseTarget(key, value);
+    }
+}
+function getOriginFromTransition(key, transition) {
+    if (!transition)
+        return;
+    var valueTransition = transition[key] || transition["default"] || transition;
+    return valueTransition.from;
+}
+function getOrigin(target, transition, visualElement) {
+    var _a, _b;
+    var origin = {};
+    for (var key in target) {
+        origin[key] = (_a = getOriginFromTransition(key, transition)) !== null && _a !== void 0 ? _a : (_b = visualElement.getValue(key)) === null || _b === void 0 ? void 0 : _b.get();
+    }
+    return origin;
+}
+
 /**
- * Build a transform style that takes a calculated delta between the element's current
- * space on screen and projects it into the desired space.
+ * @internal
  */
-function buildLayoutProjectionTransform(_a, treeScale, latestTransform) {
-    var x = _a.x, y = _a.y;
+function animateVisualElement(visualElement, definition, options) {
+    visualElement.notifyAnimationStart();
+    var animation;
+    if (Array.isArray(definition)) {
+        var animations = definition.map(function (variant) {
+            return animateVariant(visualElement, variant, options);
+        });
+        animation = Promise.all(animations);
+    }
+    else if (typeof definition === "string") {
+        animation = animateVariant(visualElement, definition, options);
+    }
+    else {
+        // TODO: Remove any and handle TargetResolver
+        animation = animateTarget(visualElement, definition, options);
+    }
+    return animation.then(function () {
+        return visualElement.notifyAnimationComplete(definition);
+    });
+}
+function animateVariant(visualElement, variant, options) {
+    var _a;
+    if (options === void 0) { options = {}; }
+    var resolved = resolveVariant(visualElement, variant, options.custom);
+    var _b = (resolved || {}).transition, transition = _b === void 0 ? visualElement.getDefaultTransition() || {} : _b;
+    if (options.transitionOverride) {
+        transition = options.transitionOverride;
+    }
     /**
-     * The translations we use to calculate are always relative to the viewport coordinate space.
-     * But when we apply scales, we also scale the coordinate space of an element and its children.
-     * For instance if we have a treeScale (the culmination of all parent scales) of 0.5 and we need
-     * to move an element 100 pixels, we actually need to move it 200 in within that scaled space.
+     * If we have a variant, create a callback that runs it as an animation.
+     * Otherwise, we resolve a Promise immediately for a composable no-op.
      */
-    var xTranslate = x.translate / treeScale.x;
-    var yTranslate = y.translate / treeScale.y;
-    var transform = "translate3d(" + xTranslate + "px, " + yTranslate + "px, 0) ";
-    if (latestTransform) {
-        var rotate = latestTransform.rotate, rotateX = latestTransform.rotateX, rotateY = latestTransform.rotateY;
-        if (rotate)
-            transform += "rotate(" + rotate + ") ";
-        if (rotateX)
-            transform += "rotateX(" + rotateX + ") ";
-        if (rotateY)
-            transform += "rotateY(" + rotateY + ") ";
+    var getAnimation = resolved
+        ? function () { return animateTarget(visualElement, resolved, options); }
+        : function () { return Promise.resolve(); };
+    /**
+     * If we have children, create a callback that runs all their animations.
+     * Otherwise, we resolve a Promise immediately for a composable no-op.
+     */
+    var getChildAnimations = ((_a = visualElement.variantChildren) === null || _a === void 0 ? void 0 : _a.size) ? function (forwardDelay) {
+        if (forwardDelay === void 0) { forwardDelay = 0; }
+        var _a = transition.delayChildren, delayChildren = _a === void 0 ? 0 : _a, staggerChildren = transition.staggerChildren, staggerDirection = transition.staggerDirection;
+        return animateChildren(visualElement, variant, delayChildren + forwardDelay, staggerChildren, staggerDirection, options);
     }
-    transform += "scale(" + x.scale + ", " + y.scale + ")";
-    return !latestTransform && transform === identityProjection ? "" : transform;
+        : function () { return Promise.resolve(); };
+    /**
+     * If the transition explicitly defines a "when" option, we need to resolve either
+     * this animation or all children animations before playing the other.
+     */
+    var when = transition.when;
+    if (when) {
+        var _c = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(when === "beforeChildren"
+            ? [getAnimation, getChildAnimations]
+            : [getChildAnimations, getAnimation], 2), first = _c[0], last = _c[1];
+        return first().then(last);
+    }
+    else {
+        return Promise.all([getAnimation(), getChildAnimations(options.delay)]);
+    }
 }
-var identityProjection = buildLayoutProjectionTransform(delta(), {
-    x: 1,
-    y: 1,
-});
 /**
- * Take the calculated delta origin and apply it as a transform string.
+ * @internal
  */
-function buildLayoutProjectionTransformOrigin(_a) {
-    var x = _a.x, y = _a.y;
-    return x.origin * 100 + "% " + y.origin * 100 + "% 0";
+function animateTarget(visualElement, definition, _a) {
+    var _b;
+    var _c = _a === void 0 ? {} : _a, _d = _c.delay, delay = _d === void 0 ? 0 : _d, transitionOverride = _c.transitionOverride, type = _c.type;
+    var _e = visualElement.makeTargetAnimatable(definition), _f = _e.transition, transition = _f === void 0 ? visualElement.getDefaultTransition() : _f, transitionEnd = _e.transitionEnd, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_e, ["transition", "transitionEnd"]);
+    if (transitionOverride)
+        transition = transitionOverride;
+    var animations = [];
+    var animationTypeState = type && ((_b = visualElement.animationState) === null || _b === void 0 ? void 0 : _b.getState()[type]);
+    for (var key in target) {
+        var value = visualElement.getValue(key);
+        var valueTarget = target[key];
+        if (!value ||
+            valueTarget === undefined ||
+            (animationTypeState &&
+                shouldBlockAnimation(animationTypeState, key))) {
+            continue;
+        }
+        var animation = startAnimation(key, value, valueTarget, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ delay: delay }, transition));
+        animations.push(animation);
+    }
+    return Promise.all(animations).then(function () {
+        transitionEnd && setTarget(visualElement, transitionEnd);
+    });
+}
+function animateChildren(visualElement, variant, delayChildren, staggerChildren, staggerDirection, options) {
+    if (delayChildren === void 0) { delayChildren = 0; }
+    if (staggerChildren === void 0) { staggerChildren = 0; }
+    if (staggerDirection === void 0) { staggerDirection = 1; }
+    var animations = [];
+    var maxStaggerDuration = (visualElement.variantChildren.size - 1) * staggerChildren;
+    var generateStaggerDuration = staggerDirection === 1
+        ? function (i) {
+            if (i === void 0) { i = 0; }
+            return i * staggerChildren;
+        }
+        : function (i) {
+            if (i === void 0) { i = 0; }
+            return maxStaggerDuration - i * staggerChildren;
+        };
+    Array.from(visualElement.variantChildren)
+        .sort(sortByTreeOrder)
+        .forEach(function (child, i) {
+        animations.push(animateVariant(child, variant, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, options), { delay: delayChildren + generateStaggerDuration(i) })).then(function () { return child.notifyAnimationComplete(variant); }));
+    });
+    return Promise.all(animations);
+}
+function stopAnimation(visualElement) {
+    visualElement.forEachValue(function (value) { return value.stop(); });
+}
+function sortByTreeOrder(a, b) {
+    return a.sortNodePosition(b);
+}
+/**
+ * Decide whether we should block this animation. Previously, we achieved this
+ * just by checking whether the key was listed in protectedKeys, but this
+ * posed problems if an animation was triggered by afterChildren and protectedKeys
+ * had been set to true in the meantime.
+ */
+function shouldBlockAnimation(_a, key) {
+    var protectedKeys = _a.protectedKeys, needsAnimating = _a.needsAnimating;
+    var shouldBlock = protectedKeys.hasOwnProperty(key) && needsAnimating[key] !== true;
+    needsAnimating[key] = false;
+    return shouldBlock;
 }
 
-/**
- * Returns true if the provided key is a CSS variable
- */
-function isCSSVariable(key) {
-    return key.startsWith("--");
+function animationControls() {
+    /**
+     * Track whether the host component has mounted.
+     */
+    var hasMounted = false;
+    /**
+     * Pending animations that are started before a component is mounted.
+     * TODO: Remove this as animations should only run in effects
+     */
+    var pendingAnimations = [];
+    /**
+     * A collection of linked component animation controls.
+     */
+    var subscribers = new Set();
+    var controls = {
+        subscribe: function (visualElement) {
+            subscribers.add(visualElement);
+            return function () { return void subscribers.delete(visualElement); };
+        },
+        start: function (definition, transitionOverride) {
+            /**
+             * TODO: We only perform this hasMounted check because in Framer we used to
+             * encourage the ability to start an animation within the render phase. This
+             * isn't behaviour concurrent-safe so when we make Framer concurrent-safe
+             * we can ditch this.
+             */
+            if (hasMounted) {
+                var animations_1 = [];
+                subscribers.forEach(function (visualElement) {
+                    animations_1.push(animateVisualElement(visualElement, definition, {
+                        transitionOverride: transitionOverride,
+                    }));
+                });
+                return Promise.all(animations_1);
+            }
+            else {
+                return new Promise(function (resolve) {
+                    pendingAnimations.push({
+                        animation: [definition, transitionOverride],
+                        resolve: resolve,
+                    });
+                });
+            }
+        },
+        set: function (definition) {
+            (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(hasMounted, "controls.set() should only be called after a component has mounted. Consider calling within a useEffect hook.");
+            return subscribers.forEach(function (visualElement) {
+                setValues(visualElement, definition);
+            });
+        },
+        stop: function () {
+            subscribers.forEach(function (visualElement) {
+                stopAnimation(visualElement);
+            });
+        },
+        mount: function () {
+            hasMounted = true;
+            pendingAnimations.forEach(function (_a) {
+                var animation = _a.animation, resolve = _a.resolve;
+                controls.start.apply(controls, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(animation)).then(resolve);
+            });
+            return function () {
+                hasMounted = false;
+                controls.stop();
+            };
+        },
+    };
+    return controls;
+}
+function isAnimationControls(v) {
+    return typeof v === "object" && typeof v.start === "function";
 }
 
-function isCSSVariable$1(value) {
+function isCSSVariable(value) {
     return typeof value === "string" && value.startsWith("var(--");
 }
 /**
@@ -8943,7 +9525,7 @@ function getVariableValue(current, element, depth) {
     if (resolved) {
         return resolved.trim();
     }
-    else if (isCSSVariable$1(fallback)) {
+    else if (isCSSVariable(fallback)) {
         // The fallback might itself be a CSS variable, in which case we attempt to resolve it too.
         return getVariableValue(fallback, element, depth + 1);
     }
@@ -8970,7 +9552,7 @@ function resolveCSSVariables(visualElement, _a, transitionEnd) {
     // Go through existing `MotionValue`s and ensure any existing CSS variables are resolved
     visualElement.forEachValue(function (value) {
         var current = value.get();
-        if (!isCSSVariable$1(current))
+        if (!isCSSVariable(current))
             return;
         var resolved = getVariableValue(current, element);
         if (resolved)
@@ -8980,7 +9562,7 @@ function resolveCSSVariables(visualElement, _a, transitionEnd) {
     // we only read single-var properties like `var(--foo)`, not `calc(var(--foo) + 20px)`
     for (var key in target) {
         var current = target[key];
-        if (!isCSSVariable$1(current))
+        if (!isCSSVariable(current))
             continue;
         var resolved = getVariableValue(current, element);
         if (!resolved)
@@ -9006,7 +9588,8 @@ function pixelsToPercent(pixels, axis) {
  * borderRadius in both states. If we animate between the two in pixels that will trigger
  * a paint each time. If we animate between the two in percentage we'll avoid a paint.
  */
-function correctBorderRadius(latest, viewportBox) {
+function correctBorderRadius(latest, _layoutState, _a) {
+    var target = _a.target;
     /**
      * If latest is a string, if it's a percentage we can return immediately as it's
      * going to be stretched appropriately. Otherwise, if it's a pixel, convert it to a number.
@@ -9023,12 +9606,13 @@ function correctBorderRadius(latest, viewportBox) {
      * If latest is a number, it's a pixel value. We use the current viewportBox to calculate that
      * pixel value as a percentage of each axis
      */
-    var x = pixelsToPercent(latest, viewportBox.x);
-    var y = pixelsToPercent(latest, viewportBox.y);
+    var x = pixelsToPercent(latest, target.x);
+    var y = pixelsToPercent(latest, target.y);
     return x + "% " + y + "%";
 }
 var varToken = "_$css";
-function correctBoxShadow(latest, _viewportBox, delta, treeScale) {
+function correctBoxShadow(latest, _a) {
+    var delta = _a.delta, treeScale = _a.treeScale;
     var original = latest;
     /**
      * We need to first strip and store CSS variables from the string.
@@ -9103,314 +9687,1328 @@ function addScaleCorrection(correctors) {
     }
 }
 
-/**
- * Build style and CSS variables
- *
- * This function converts a Motion style prop:
- *
- * { x: 100, width: 100, originX: 0.5 }
- *
- * Into an object with default value types applied and default
- * transform order set:
- *
- * {
- *   transform: 'translateX(100px) translateZ(0)`,
- *   width: '100px',
- *   transformOrigin: '50% 50%'
- * }
- *
- * Styles are saved to `style` and CSS vars to `vars`.
- *
- * This function works with mutative data structures.
- */
-function buildHTMLStyles(latest, style, vars, transform, transformOrigin, transformKeys, _a, isLayoutProjectionEnabled, delta, deltaFinal, treeScale, targetBox) {
-    var enableHardwareAcceleration = _a.enableHardwareAcceleration, transformTemplate = _a.transformTemplate, allowTransformNone = _a.allowTransformNone;
-    // Empty the transformKeys array. As we're throwing out refs to its items
-    // this might not be as cheap as suspected. Maybe using the array as a buffer
-    // with a manual incrementation would be better.
-    transformKeys.length = 0;
-    // Track whether we encounter any transform or transformOrigin values.
-    var hasTransform = false;
-    var hasTransformOrigin = false;
-    // Does the calculated transform essentially equal "none"?
-    var transformIsNone = true;
-    /**
-     * Loop over all our latest animated values and decide whether to handle them
-     * as a style or CSS variable. Transforms and transform origins are kept seperately
-     * for further processing
-     */
-    for (var key in latest) {
-        var value = latest[key];
-        // Convert the value to its default value type, ie 0 -> "0px"
-        var valueType = getDefaultValueType(key);
-        var valueAsType = getValueAsType(value, valueType);
-        if (isTransformProp(key)) {
-            // If this is a transform, flag and enable further transform processing
-            hasTransform = true;
-            transform[key] = valueAsType;
-            transformKeys.push(key);
-            if (!transformIsNone)
-                continue;
-            // If all the transform keys we've so far encountered are their default value
-            // then check to see if this one isn't
-            var defaultValue = valueType.default !== undefined ? valueType.default : 0;
-            if (value !== defaultValue)
-                transformIsNone = false;
+function isForcedMotionValue(key, _a) {
+    var layout = _a.layout, layoutId = _a.layoutId;
+    return (isTransformProp(key) ||
+        isTransformOriginProp(key) ||
+        ((layout || layoutId !== undefined) && !!valueScaleCorrection[key]));
+}
+
+var createProjectionState = function () { return ({
+    isEnabled: false,
+    isTargetLocked: false,
+    target: axisBox(),
+    targetFinal: axisBox(),
+}); };
+function createVisualState(props, parent, blockInitialAnimation) {
+    var style = props.style;
+    var values = {};
+    for (var key in style) {
+        if (isMotionValue(style[key])) {
+            values[key] = style[key].get();
         }
-        else if (isTransformOriginProp(key)) {
-            // If this is a transform origin, flag and enable further transform-origin processing
-            transformOrigin[key] = valueAsType;
-            hasTransformOrigin = true;
-        }
-        else if (key !== "transform" || typeof value !== "function") {
-            // Handle all remaining values. Decide which map to save to depending
-            // on whether this is a CSS variable
-            var bucket = isCSSVariable(key) ? vars : style;
-            // If we need to perform scale correction, and we have a handler for this
-            // value type (ie borderRadius), perform it
-            if (isLayoutProjectionEnabled && valueScaleCorrection[key]) {
-                var corrected = valueScaleCorrection[key].process(value, targetBox, delta, treeScale);
-                /**
-                 * Scale-correctable values can define a number of other values to break
-                 * down into. For instance borderRadius needs applying to borderBottomLeftRadius etc
-                 */
-                var applyTo = valueScaleCorrection[key].applyTo;
-                if (applyTo) {
-                    var num = applyTo.length;
-                    for (var i = 0; i < num; i++) {
-                        bucket[applyTo[i]] = corrected;
-                    }
-                }
-                else {
-                    bucket[key] = corrected;
-                }
-            }
-            else {
-                bucket[key] = valueAsType;
-            }
+        else if (isForcedMotionValue(key, props)) {
+            values[key] = style[key];
         }
     }
-    /**
-     * Build transform and transformOrigin. If we're performing layout projection these need
-     * to be based off the deltaFinal data. Any user-set origins will have been pre-baked
-     * into the deltaFinal.
-     */
-    if (isLayoutProjectionEnabled) {
-        style.transform = buildLayoutProjectionTransform(deltaFinal, treeScale, hasTransform ? transform : undefined);
-        if (transformTemplate) {
-            style.transform = transformTemplate(transform, style.transform);
+    var initial = props.initial, animate = props.animate;
+    var isControllingVariants = checkIfControllingVariants(props);
+    var isVariantNode = isControllingVariants || props.variants;
+    if (isVariantNode && !isControllingVariants && props.inherit !== false) {
+        var context = parent === null || parent === void 0 ? void 0 : parent.getVariantContext();
+        if (context) {
+            initial !== null && initial !== void 0 ? initial : (initial = context.initial);
+            animate !== null && animate !== void 0 ? animate : (animate = context.animate);
         }
-        style.transformOrigin = buildLayoutProjectionTransformOrigin(deltaFinal);
+    }
+    var initialToSet = blockInitialAnimation || initial === false ? animate : initial;
+    if (initialToSet &&
+        typeof initialToSet !== "boolean" &&
+        !isAnimationControls(initialToSet)) {
+        var list = Array.isArray(initialToSet) ? initialToSet : [initialToSet];
+        list.forEach(function (definition) {
+            var resolved = resolveVariantFromProps(props, definition);
+            if (!resolved)
+                return;
+            var transitionEnd = resolved.transitionEnd, transition = resolved.transition, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(resolved, ["transitionEnd", "transition"]);
+            for (var key in target)
+                values[key] = target[key];
+            for (var key in transitionEnd)
+                values[key] = transitionEnd[key];
+        });
+    }
+    return values;
+}
+function createLayoutState() {
+    return {
+        isHydrated: false,
+        layout: axisBox(),
+        layoutCorrected: axisBox(),
+        treeScale: { x: 1, y: 1 },
+        delta: delta(),
+        deltaFinal: delta(),
+        deltaTransform: "",
+    };
+}
+var zeroLayout = createLayoutState();
+
+var translateAlias = {
+    x: "translateX",
+    y: "translateY",
+    z: "translateZ",
+    transformPerspective: "perspective",
+};
+/**
+ * Build a CSS transform style from individual x/y/scale etc properties.
+ *
+ * This outputs with a default order of transforms/scales/rotations, this can be customised by
+ * providing a transformTemplate function.
+ */
+function buildTransform(_a, _b, transformIsDefault, transformTemplate) {
+    var transform = _a.transform, transformKeys = _a.transformKeys;
+    var _c = _b.enableHardwareAcceleration, enableHardwareAcceleration = _c === void 0 ? true : _c, _d = _b.allowTransformNone, allowTransformNone = _d === void 0 ? true : _d;
+    // The transform string we're going to build into.
+    var transformString = "";
+    // Transform keys into their default order - this will determine the output order.
+    transformKeys.sort(sortTransformProps);
+    // Track whether the defined transform has a defined z so we don't add a
+    // second to enable hardware acceleration
+    var transformHasZ = false;
+    // Loop over each transform and build them into transformString
+    var numTransformKeys = transformKeys.length;
+    for (var i = 0; i < numTransformKeys; i++) {
+        var key = transformKeys[i];
+        transformString += (translateAlias[key] || key) + "(" + transform[key] + ") ";
+        if (key === "z")
+            transformHasZ = true;
+    }
+    if (!transformHasZ && enableHardwareAcceleration) {
+        transformString += "translateZ(0)";
     }
     else {
-        if (hasTransform) {
-            style.transform = buildTransform(transform, transformKeys, transformTemplate, transformIsNone, enableHardwareAcceleration, allowTransformNone);
-        }
-        if (hasTransformOrigin) {
-            style.transformOrigin = buildTransformOrigin(transformOrigin);
-        }
+        transformString = transformString.trim();
     }
-}
-
-/**
- * Reset an axis to the provided origin box.
- *
- * This is a mutative operation.
- */
-function resetAxis(axis, originAxis) {
-    axis.min = originAxis.min;
-    axis.max = originAxis.max;
-}
-/**
- * Reset a box to the provided origin box.
- *
- * This is a mutative operation.
- */
-function resetBox(box, originBox) {
-    resetAxis(box.x, originBox.x);
-    resetAxis(box.y, originBox.y);
-}
-/**
- * Scales a point based on a factor and an originPoint
- */
-function scalePoint(point, scale, originPoint) {
-    var distanceFromOrigin = point - originPoint;
-    var scaled = scale * distanceFromOrigin;
-    return originPoint + scaled;
-}
-/**
- * Applies a translate/scale delta to a point
- */
-function applyPointDelta(point, translate, scale, originPoint, boxScale) {
-    if (boxScale !== undefined) {
-        point = scalePoint(point, boxScale, originPoint);
+    // If we have a custom `transform` template, pass our transform values and
+    // generated transformString to that before returning
+    if (transformTemplate) {
+        transformString = transformTemplate(transform, transformIsDefault ? "" : transformString);
     }
-    return scalePoint(point, scale, originPoint) + translate;
+    else if (allowTransformNone && transformIsDefault) {
+        transformString = "none";
+    }
+    return transformString;
 }
 /**
- * Applies a translate/scale delta to an axis
+ * Build a transformOrigin style. Uses the same defaults as the browser for
+ * undefined origins.
  */
-function applyAxisDelta(axis, translate, scale, originPoint, boxScale) {
-    if (translate === void 0) { translate = 0; }
-    if (scale === void 0) { scale = 1; }
-    axis.min = applyPointDelta(axis.min, translate, scale, originPoint, boxScale);
-    axis.max = applyPointDelta(axis.max, translate, scale, originPoint, boxScale);
+function buildTransformOrigin(_a) {
+    var _b = _a.originX, originX = _b === void 0 ? "50%" : _b, _c = _a.originY, originY = _c === void 0 ? "50%" : _c, _d = _a.originZ, originZ = _d === void 0 ? 0 : _d;
+    return originX + " " + originY + " " + originZ;
 }
 /**
- * Applies a translate/scale delta to a box
+ * Build a transform style that takes a calculated delta between the element's current
+ * space on screen and projects it into the desired space.
  */
-function applyBoxDelta(box, _a) {
+function buildLayoutProjectionTransform(_a, treeScale, latestTransform) {
     var x = _a.x, y = _a.y;
-    applyAxisDelta(box.x, x.translate, x.scale, x.originPoint);
-    applyAxisDelta(box.y, y.translate, y.scale, y.originPoint);
-}
-/**
- * Apply a transform to an axis from the latest resolved motion values.
- * This function basically acts as a bridge between a flat motion value map
- * and applyAxisDelta
- */
-function applyAxisTransforms(final, axis, transforms, _a) {
-    var _b = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(_a, 3), key = _b[0], scaleKey = _b[1], originKey = _b[2];
-    // Copy the current axis to the final axis before mutation
-    final.min = axis.min;
-    final.max = axis.max;
-    var axisOrigin = transforms[originKey] !== undefined ? transforms[originKey] : 0.5;
-    var originPoint = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(axis.min, axis.max, axisOrigin);
-    // Apply the axis delta to the final axis
-    applyAxisDelta(final, transforms[key], transforms[scaleKey], originPoint, transforms.scale);
-}
-/**
- * The names of the motion values we want to apply as translation, scale and origin.
- */
-var xKeys = ["x", "scaleX", "originX"];
-var yKeys = ["y", "scaleY", "originY"];
-/**
- * Apply a transform to a box from the latest resolved motion values.
- */
-function applyBoxTransforms(finalBox, box, transforms) {
-    applyAxisTransforms(finalBox.x, box.x, transforms, xKeys);
-    applyAxisTransforms(finalBox.y, box.y, transforms, yKeys);
-}
-/**
- * Remove a delta from a point. This is essentially the steps of applyPointDelta in reverse
- */
-function removePointDelta(point, translate, scale, originPoint, boxScale) {
-    point -= translate;
-    point = scalePoint(point, 1 / scale, originPoint);
-    if (boxScale !== undefined) {
-        point = scalePoint(point, 1 / boxScale, originPoint);
+    /**
+     * The translations we use to calculate are always relative to the viewport coordinate space.
+     * But when we apply scales, we also scale the coordinate space of an element and its children.
+     * For instance if we have a treeScale (the culmination of all parent scales) of 0.5 and we need
+     * to move an element 100 pixels, we actually need to move it 200 in within that scaled space.
+     */
+    var xTranslate = x.translate / treeScale.x;
+    var yTranslate = y.translate / treeScale.y;
+    var transform = "translate3d(" + xTranslate + "px, " + yTranslate + "px, 0) ";
+    if (latestTransform) {
+        var rotate = latestTransform.rotate, rotateX = latestTransform.rotateX, rotateY = latestTransform.rotateY;
+        if (rotate)
+            transform += "rotate(" + rotate + ") ";
+        if (rotateX)
+            transform += "rotateX(" + rotateX + ") ";
+        if (rotateY)
+            transform += "rotateY(" + rotateY + ") ";
     }
-    return point;
+    transform += "scale(" + x.scale + ", " + y.scale + ")";
+    return !latestTransform && transform === identityProjection ? "" : transform;
 }
 /**
- * Remove a delta from an axis. This is essentially the steps of applyAxisDelta in reverse
+ * Take the calculated delta origin and apply it as a transform string.
  */
-function removeAxisDelta(axis, translate, scale, origin, boxScale) {
-    if (translate === void 0) { translate = 0; }
-    if (scale === void 0) { scale = 1; }
-    if (origin === void 0) { origin = 0.5; }
-    var originPoint = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(axis.min, axis.max, origin) - translate;
-    axis.min = removePointDelta(axis.min, translate, scale, originPoint, boxScale);
-    axis.max = removePointDelta(axis.max, translate, scale, originPoint, boxScale);
+function buildLayoutProjectionTransformOrigin(_a) {
+    var deltaFinal = _a.deltaFinal;
+    return deltaFinal.x.origin * 100 + "% " + deltaFinal.y.origin * 100 + "% 0";
 }
-/**
- * Remove a transforms from an axis. This is essentially the steps of applyAxisTransforms in reverse
- * and acts as a bridge between motion values and removeAxisDelta
- */
-function removeAxisTransforms(axis, transforms, _a) {
-    var _b = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(_a, 3), key = _b[0], scaleKey = _b[1], originKey = _b[2];
-    removeAxisDelta(axis, transforms[key], transforms[scaleKey], transforms[originKey], transforms.scale);
-}
-/**
- * Remove a transforms from an box. This is essentially the steps of applyAxisBox in reverse
- * and acts as a bridge between motion values and removeAxisDelta
- */
-function removeBoxTransforms(box, transforms) {
-    removeAxisTransforms(box.x, transforms, xKeys);
-    removeAxisTransforms(box.y, transforms, yKeys);
-}
-/**
- * Apply a tree of deltas to a box. We do this to calculate the effect of all the transforms
- * in a tree upon our box before then calculating how to project it into our desired viewport-relative box
- *
- * This is the final nested loop within HTMLVisualElement.updateLayoutDelta
- */
-function applyTreeDeltas(box, treeScale, treePath) {
-    var treeLength = treePath.length;
-    if (!treeLength)
-        return;
-    // Reset the treeScale
-    treeScale.x = treeScale.y = 1;
-    for (var i = 0; i < treeLength; i++) {
-        var delta = treePath[i].delta;
-        // Incoporate each ancestor's scale into a culmulative treeScale for this component
-        treeScale.x *= delta.x.scale;
-        treeScale.y *= delta.y.scale;
-        // Apply each ancestor's calculated delta into this component's recorded layout box
-        applyBoxDelta(box, delta);
+var identityProjection = buildLayoutProjectionTransform(zeroLayout.delta, zeroLayout.treeScale, { x: 1, y: 1 });
+
+function shallowCompare(next, prev) {
+    if (!Array.isArray(prev))
+        return false;
+    var prevLength = prev.length;
+    if (prevLength !== next.length)
+        return false;
+    for (var i = 0; i < prevLength; i++) {
+        if (prev[i] !== next[i])
+            return false;
     }
+    return true;
 }
 
-var clampProgress = function (v) { return (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.clamp)(0, 1, v); };
-/**
- * Returns true if the provided value is within maxDistance of the provided target
- */
-function isNear(value, target, maxDistance) {
-    if (target === void 0) { target = 0; }
-    if (maxDistance === void 0) { maxDistance = 0.01; }
-    return (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.distance)(value, target) < maxDistance;
+var AnimationType;
+(function (AnimationType) {
+    AnimationType["Animate"] = "animate";
+    AnimationType["Hover"] = "whileHover";
+    AnimationType["Tap"] = "whileTap";
+    AnimationType["Drag"] = "whileDrag";
+    AnimationType["Focus"] = "whileFocus";
+    AnimationType["Exit"] = "exit";
+})(AnimationType || (AnimationType = {}));
+var variantPriorityOrder = [
+    AnimationType.Animate,
+    AnimationType.Hover,
+    AnimationType.Tap,
+    AnimationType.Drag,
+    AnimationType.Focus,
+    AnimationType.Exit,
+];
+var reversePriorityOrder = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(variantPriorityOrder).reverse();
+var numAnimationTypes = variantPriorityOrder.length;
+function animateList(visualElement) {
+    return function (animations) {
+        return Promise.all(animations.map(function (_a) {
+            var animation = _a.animation, options = _a.options;
+            return animateVisualElement(visualElement, animation, options);
+        }));
+    };
 }
-function calcLength(axis) {
-    return axis.max - axis.min;
-}
-/**
- * Calculate a transform origin relative to the source axis, between 0-1, that results
- * in an asthetically pleasing scale/transform needed to project from source to target.
- */
-function calcOrigin(source, target) {
-    var origin = 0.5;
-    var sourceLength = calcLength(source);
-    var targetLength = calcLength(target);
-    if (targetLength > sourceLength) {
-        origin = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.progress)(target.min, target.max - sourceLength, source.min);
+function createAnimationState(visualElement) {
+    var animate = animateList(visualElement);
+    var state = createState();
+    var allAnimatedKeys = {};
+    var isInitialRender = true;
+    /**
+     * This function will be used to reduce the animation definitions for
+     * each active animation type into an object of resolved values for it.
+     */
+    var buildResolvedTypeValues = function (acc, definition) {
+        var resolved = resolveVariant(visualElement, definition);
+        if (resolved) {
+            var transition = resolved.transition, transitionEnd = resolved.transitionEnd, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(resolved, ["transition", "transitionEnd"]);
+            acc = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, acc), target), transitionEnd);
+        }
+        return acc;
+    };
+    function isAnimated(key) {
+        return allAnimatedKeys[key] !== undefined;
     }
-    else if (sourceLength > targetLength) {
-        origin = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.progress)(source.min, source.max - targetLength, target.min);
+    /**
+     * This just allows us to inject mocked animation functions
+     * @internal
+     */
+    function setAnimateFunction(makeAnimator) {
+        animate = makeAnimator(visualElement);
     }
-    return clampProgress(origin);
+    /**
+     * When we receive new props, we need to:
+     * 1. Create a list of protected keys for each type. This is a directory of
+     *    value keys that are currently being "handled" by types of a higher priority
+     *    so that whenever an animation is played of a given type, these values are
+     *    protected from being animated.
+     * 2. Determine if an animation type needs animating.
+     * 3. Determine if any values have been removed from a type and figure out
+     *    what to animate those to.
+     */
+    function animateChanges(options, changedActiveType) {
+        var props = visualElement.getProps();
+        var context = visualElement.getVariantContext(true) || {};
+        /**
+         * A list of animations that we'll build into as we iterate through the animation
+         * types. This will get executed at the end of the function.
+         */
+        var animations = [];
+        /**
+         * Keep track of which values have been removed. Then, as we hit lower priority
+         * animation types, we can check if they contain removed values and animate to that.
+         */
+        var removedKeys = new Set();
+        /**
+         * A dictionary of all encountered keys. This is an object to let us build into and
+         * copy it without iteration. Each time we hit an animation type we set its protected
+         * keys - the keys its not allowed to animate - to the latest version of this object.
+         */
+        var encounteredKeys = {};
+        /**
+         * If a variant has been removed at a given index, and this component is controlling
+         * variant animations, we want to ensure lower-priority variants are forced to animate.
+         */
+        var removedVariantIndex = Infinity;
+        var _loop_1 = function (i) {
+            var type = reversePriorityOrder[i];
+            var typeState = state[type];
+            var prop = (_a = props[type]) !== null && _a !== void 0 ? _a : context[type];
+            var propIsVariant = isVariantLabel(prop);
+            /**
+             * If this type has *just* changed isActive status, set activeDelta
+             * to that status. Otherwise set to null.
+             */
+            var activeDelta = type === changedActiveType ? typeState.isActive : null;
+            if (activeDelta === false)
+                removedVariantIndex = i;
+            /**
+             * If this prop is an inherited variant, rather than been set directly on the
+             * component itself, we want to make sure we allow the parent to trigger animations.
+             *
+             * TODO: Can probably change this to a !isControllingVariants check
+             */
+            var isInherited = prop === context[type] && prop !== props[type] && propIsVariant;
+            /**
+             *
+             */
+            if (isInherited &&
+                isInitialRender &&
+                visualElement.manuallyAnimateOnMount) {
+                isInherited = false;
+            }
+            /**
+             * Set all encountered keys so far as the protected keys for this type. This will
+             * be any key that has been animated or otherwise handled by active, higher-priortiy types.
+             */
+            typeState.protectedKeys = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, encounteredKeys);
+            // Check if we can skip analysing this prop early
+            if (
+            // If it isn't active and hasn't *just* been set as inactive
+            (!typeState.isActive && activeDelta === null) ||
+                // If we didn't and don't have any defined prop for this animation type
+                (!prop && !typeState.prevProp) ||
+                // Or if the prop doesn't define an animation
+                isAnimationControls(prop) ||
+                typeof prop === "boolean") {
+                return "continue";
+            }
+            /**
+             * As we go look through the values defined on this type, if we detect
+             * a changed value or a value that was removed in a higher priority, we set
+             * this to true and add this prop to the animation list.
+             */
+            var shouldAnimateType = variantsHaveChanged(typeState.prevProp, prop) ||
+                // If we're making this variant active, we want to always make it active
+                (type === changedActiveType &&
+                    typeState.isActive &&
+                    !isInherited &&
+                    propIsVariant) ||
+                // If we removed a higher-priority variant (i is in reverse order)
+                (i > removedVariantIndex && propIsVariant);
+            /**
+             * As animations can be set as variant lists, variants or target objects, we
+             * coerce everything to an array if it isn't one already
+             */
+            var definitionList = Array.isArray(prop) ? prop : [prop];
+            /**
+             * Build an object of all the resolved values. We'll use this in the subsequent
+             * animateChanges calls to determine whether a value has changed.
+             */
+            var resolvedValues = definitionList.reduce(buildResolvedTypeValues, {});
+            if (activeDelta === false)
+                resolvedValues = {};
+            /**
+             * Now we need to loop through all the keys in the prev prop and this prop,
+             * and decide:
+             * 1. If the value has changed, and needs animating
+             * 2. If it has been removed, and needs adding to the removedKeys set
+             * 3. If it has been removed in a higher priority type and needs animating
+             * 4. If it hasn't been removed in a higher priority but hasn't changed, and
+             *    needs adding to the type's protectedKeys list.
+             */
+            var _a = typeState.prevResolvedValues, prevResolvedValues = _a === void 0 ? {} : _a;
+            var allKeys = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, prevResolvedValues), resolvedValues);
+            var markToAnimate = function (key) {
+                shouldAnimateType = true;
+                removedKeys.delete(key);
+                typeState.needsAnimating[key] = true;
+            };
+            for (var key in allKeys) {
+                var next = resolvedValues[key];
+                var prev = prevResolvedValues[key];
+                // If we've already handled this we can just skip ahead
+                if (encounteredKeys.hasOwnProperty(key))
+                    continue;
+                /**
+                 * If the value has changed, we probably want to animate it.
+                 */
+                if (next !== prev) {
+                    /**
+                     * If both values are keyframes, we need to shallow compare them to
+                     * detect whether any value has changed. If it has, we animate it.
+                     */
+                    if (isKeyframesTarget(next) && isKeyframesTarget(prev)) {
+                        if (!shallowCompare(next, prev)) {
+                            markToAnimate(key);
+                        }
+                        else {
+                            /**
+                             * If it hasn't changed, we want to ensure it doesn't animate by
+                             * adding it to the list of protected keys.
+                             */
+                            typeState.protectedKeys[key] = true;
+                        }
+                    }
+                    else if (next !== undefined) {
+                        // If next is defined and doesn't equal prev, it needs animating
+                        markToAnimate(key);
+                    }
+                    else {
+                        // If it's undefined, it's been removed.
+                        removedKeys.add(key);
+                    }
+                }
+                else if (next !== undefined && removedKeys.has(key)) {
+                    /**
+                     * If next hasn't changed and it isn't undefined, we want to check if it's
+                     * been removed by a higher priority
+                     */
+                    markToAnimate(key);
+                }
+                else {
+                    /**
+                     * If it hasn't changed, we add it to the list of protected values
+                     * to ensure it doesn't get animated.
+                     */
+                    typeState.protectedKeys[key] = true;
+                }
+            }
+            /**
+             * Update the typeState so next time animateChanges is called we can compare the
+             * latest prop and resolvedValues to these.
+             */
+            typeState.prevProp = prop;
+            typeState.prevResolvedValues = resolvedValues;
+            /**
+             *
+             */
+            if (typeState.isActive) {
+                encounteredKeys = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, encounteredKeys), resolvedValues);
+            }
+            if (isInitialRender && visualElement.blockInitialAnimation) {
+                shouldAnimateType = false;
+            }
+            /**
+             * If this is an inherited prop we want to hard-block animations
+             * TODO: Test as this should probably still handle animations triggered
+             * by removed values?
+             */
+            if (shouldAnimateType && !isInherited) {
+                animations.push.apply(animations, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(definitionList.map(function (animation) { return ({
+                    animation: animation,
+                    options: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ type: type }, options),
+                }); })));
+            }
+        };
+        /**
+         * Iterate through all animation types in reverse priority order. For each, we want to
+         * detect which values it's handling and whether or not they've changed (and therefore
+         * need to be animated). If any values have been removed, we want to detect those in
+         * lower priority props and flag for animation.
+         */
+        for (var i = 0; i < numAnimationTypes; i++) {
+            _loop_1(i);
+        }
+        allAnimatedKeys = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, encounteredKeys);
+        /**
+         * If there are some removed value that haven't been dealt with,
+         * we need to create a new animation that falls back either to the value
+         * defined in the style prop, or the last read value.
+         */
+        if (removedKeys.size) {
+            var fallbackAnimation_1 = {};
+            removedKeys.forEach(function (key) {
+                var fallbackTarget = visualElement.getBaseTarget(key);
+                if (fallbackTarget !== undefined) {
+                    fallbackAnimation_1[key] = fallbackTarget;
+                }
+            });
+            animations.push({ animation: fallbackAnimation_1 });
+        }
+        var shouldAnimate = Boolean(animations.length);
+        if (isInitialRender &&
+            props.initial === false &&
+            !visualElement.manuallyAnimateOnMount) {
+            shouldAnimate = false;
+        }
+        isInitialRender = false;
+        return shouldAnimate ? animate(animations) : Promise.resolve();
+    }
+    /**
+     * Change whether a certain animation type is active.
+     */
+    function setActive(type, isActive, options) {
+        var _a;
+        // If the active state hasn't changed, we can safely do nothing here
+        if (state[type].isActive === isActive)
+            return Promise.resolve();
+        // Propagate active change to children
+        (_a = visualElement.variantChildren) === null || _a === void 0 ? void 0 : _a.forEach(function (child) { var _a; return (_a = child.animationState) === null || _a === void 0 ? void 0 : _a.setActive(type, isActive); });
+        state[type].isActive = isActive;
+        return animateChanges(options, type);
+    }
+    return {
+        isAnimated: isAnimated,
+        animateChanges: animateChanges,
+        setActive: setActive,
+        setAnimateFunction: setAnimateFunction,
+        getState: function () { return state; },
+    };
 }
-/**
- * Update the AxisDelta with a transform that projects source into target.
- *
- * The transform `origin` is optional. If not provided, it'll be automatically
- * calculated based on the relative positions of the two bounding boxes.
- */
-function updateAxisDelta(delta, source, target, origin) {
-    delta.origin = origin === undefined ? calcOrigin(source, target) : origin;
-    delta.originPoint = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(source.min, source.max, delta.origin);
-    delta.scale = calcLength(target) / calcLength(source);
-    if (isNear(delta.scale, 1, 0.0001))
-        delta.scale = 1;
-    delta.translate =
-        (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(target.min, target.max, delta.origin) - delta.originPoint;
-    if (isNear(delta.translate))
-        delta.translate = 0;
+function variantsHaveChanged(prev, next) {
+    if (typeof next === "string") {
+        return next !== prev;
+    }
+    else if (isVariantLabels(next)) {
+        return !shallowCompare(next, prev);
+    }
+    return false;
 }
-/**
- * Update the BoxDelta with a transform that projects the source into the target.
- *
- * The transform `origin` is optional. If not provided, it'll be automatically
- * calculated based on the relative positions of the two bounding boxes.
- */
-function updateBoxDelta(delta, source, target, origin) {
-    updateAxisDelta(delta.x, source.x, target.x, origin);
-    updateAxisDelta(delta.y, source.y, target.y, origin);
+function createTypeState(isActive) {
+    if (isActive === void 0) { isActive = false; }
+    return {
+        isActive: isActive,
+        protectedKeys: {},
+        needsAnimating: {},
+        prevResolvedValues: {},
+    };
+}
+function createState() {
+    var _a;
+    return _a = {},
+        _a[AnimationType.Animate] = createTypeState(true),
+        _a[AnimationType.Hover] = createTypeState(),
+        _a[AnimationType.Tap] = createTypeState(),
+        _a[AnimationType.Drag] = createTypeState(),
+        _a[AnimationType.Focus] = createTypeState(),
+        _a[AnimationType.Exit] = createTypeState(),
+        _a;
 }
 
-// Call a handler once for each axis
-function eachAxis(handler) {
-    return [handler("x"), handler("y")];
+var names = [
+    "LayoutMeasure",
+    "BeforeLayoutMeasure",
+    "LayoutUpdate",
+    "ViewportBoxUpdate",
+    "Update",
+    "Render",
+    "AnimationComplete",
+    "LayoutAnimationComplete",
+    "AnimationStart",
+    "SetAxisTarget",
+];
+function createLifecycles() {
+    var managers = names.map(subscriptionManager);
+    var propSubscriptions = {};
+    var lifecycles = {
+        clearAllListeners: function () { return managers.forEach(function (manager) { return manager.clear(); }); },
+        updatePropListeners: function (props) {
+            return names.forEach(function (name) {
+                var _a;
+                (_a = propSubscriptions[name]) === null || _a === void 0 ? void 0 : _a.call(propSubscriptions);
+                var on = "on" + name;
+                var propListener = props[on];
+                if (propListener) {
+                    propSubscriptions[name] = lifecycles[on](propListener);
+                }
+            });
+        },
+    };
+    managers.forEach(function (manager, i) {
+        lifecycles["on" + names[i]] = manager.add;
+        lifecycles["notify" + names[i]] = manager.notify;
+    });
+    return lifecycles;
 }
+
+function updateMotionValuesFromProps(element, next, prev) {
+    var _a;
+    for (var key in next) {
+        var nextValue = next[key];
+        var prevValue = prev[key];
+        if (isMotionValue(nextValue)) {
+            /**
+             * If this is a motion value found in props or style, we want to add it
+             * to our visual element's motion value map.
+             */
+            element.addValue(key, nextValue);
+        }
+        else if (isMotionValue(prevValue)) {
+            /**
+             * If we're swapping to a new motion value, create a new motion value
+             * from that
+             */
+            element.addValue(key, motionValue(nextValue));
+        }
+        else if (prevValue !== nextValue) {
+            /**
+             * If this is a flat value that has changed, update the motion value
+             * or create one if it doesn't exist. We only want to do this if we're
+             * not handling the value with our animation state.
+             */
+            if (element.hasValue(key)) {
+                var existingValue = element.getValue(key);
+                // TODO: Only update values that aren't being animated or even looked at
+                !existingValue.hasAnimated && existingValue.set(nextValue);
+            }
+            else {
+                element.addValue(key, motionValue((_a = element.getStaticValue(key)) !== null && _a !== void 0 ? _a : nextValue));
+            }
+        }
+    }
+    // Handle removed values
+    for (var key in prev) {
+        if (next[key] === undefined)
+            element.removeValue(key);
+    }
+    return next;
+}
+
+function updateLayoutDeltas(_a, _b, treePath, transformOrigin) {
+    var delta = _a.delta, layout = _a.layout, layoutCorrected = _a.layoutCorrected, treeScale = _a.treeScale;
+    var target = _b.target;
+    /**
+     * Reset the corrected box with the latest values from box, as we're then going
+     * to perform mutative operations on it.
+     */
+    resetBox(layoutCorrected, layout);
+    /**
+     * Apply all the parent deltas to this box to produce the corrected box. This
+     * is the layout box, as it will appear on screen as a result of the transforms of its parents.
+     */
+    applyTreeDeltas(layoutCorrected, treeScale, treePath);
+    /**
+     * Update the delta between the corrected box and the target box before user-set transforms were applied.
+     * This will allow us to calculate the corrected borderRadius and boxShadow to compensate
+     * for our layout reprojection, but still allow them to be scaled correctly by the user.
+     * It might be that to simplify this we may want to accept that user-set scale1 is also corrected
+     * and we wouldn't have to keep and calc both deltas, OR we could support a user setting
+     * to allow people to choose whether these styles are corrected based on just the
+     * layout reprojection or the final bounding box.
+     */
+    updateBoxDelta(delta, layoutCorrected, target, transformOrigin);
+}
+
+var visualElement = function (_a) {
+    var _b = _a.treeType, treeType = _b === void 0 ? "" : _b, createRenderState = _a.createRenderState, build = _a.build, getBaseTarget = _a.getBaseTarget, makeTargetAnimatable = _a.makeTargetAnimatable, measureViewportBox = _a.measureViewportBox, onMount = _a.onMount, renderInstance = _a.render, readValueFromInstance = _a.readValueFromInstance, resetTransform = _a.resetTransform, restoreTransform = _a.restoreTransform, removeValueFromMutableState = _a.removeValueFromMutableState, sortNodePosition = _a.sortNodePosition, scrapeMotionValuesFromProps = _a.scrapeMotionValuesFromProps;
+    return function (_a, options) {
+        var parent = _a.parent, externalRef = _a.ref, props = _a.props, isStatic = _a.isStatic, presenceId = _a.presenceId, blockInitialAnimation = _a.blockInitialAnimation;
+        if (options === void 0) { options = {}; }
+        /**
+         * The instance of the render-specific node that will be hydrated by the
+         * exposed React ref. So for example, this visual element can host a
+         * HTMLElement, plain object, or Three.js object. The functions provided
+         * in VisualElementConfig allow us to interface with this instance.
+         */
+        var instance;
+        /**
+         * A set of all children of this visual element. We use this to traverse
+         * the tree when updating layout projections.
+         */
+        var children = new Set();
+        /**
+         * Manages the subscriptions for a visual element's lifecycle, for instance
+         * onRender and onViewportBoxUpdate.
+         */
+        var lifecycles = createLifecycles();
+        /**
+         *
+         */
+        var projection = createProjectionState();
+        /**
+         * The latest resolved motion values.
+         */
+        var latestValues = createVisualState(props, parent, blockInitialAnimation);
+        /**
+         * This is a reference to the visual state of the "lead" visual element.
+         * Usually, this will be this visual element. But if it shares a layoutId
+         * with other visual elements, only one of them will be designated lead by
+         * AnimateSharedLayout. All the other visual elements will take on the visual
+         * appearance of the lead while they crossfade to it.
+         */
+        var leadProjection = projection;
+        var leadLatestValues = latestValues;
+        var unsubscribeFromLeadVisualElement;
+        /**
+         * The latest layout measurements and calculated projections. This
+         * is seperate from the target projection data in visualState as
+         * many visual elements might point to the same piece of visualState as
+         * a target, whereas they might each have different layouts and thus
+         * projection calculations needed to project into the same viewport box.
+         */
+        var layoutState = createLayoutState();
+        /**
+         * Each visual element creates a pool of renderer-specific mutable state
+         * which allows renderer-specific calculations to occur while reducing GC.
+         */
+        var renderState = createRenderState();
+        /**
+         *
+         */
+        var crossfader;
+        /**
+         * Keep track of whether the viewport box has been updated since the
+         * last time the layout projection was re-calculated.
+         */
+        var hasViewportBoxUpdated = false;
+        /**
+         * A map of all motion values attached to this visual element. Motion
+         * values are source of truth for any given animated value. A motion
+         * value might be provided externally by the component via props.
+         */
+        var values = new Map();
+        /**
+         * A map of every subscription that binds the provided or generated
+         * motion values onChange listeners to this visual element.
+         */
+        var valueSubscriptions = new Map();
+        /**
+         * A reference to the previously-provided motion values as returned
+         * from scrapeMotionValuesFromProps. We use the keys in here to determine
+         * if any motion values need to be removed after props are updated.
+         */
+        var prevMotionValues = {};
+        /**
+         * x/y motion values that track the progress of initiated layout
+         * animations.
+         *
+         * TODO: Target for removal
+         */
+        var projectionTargetProgress;
+        /**
+         * When values are removed from all animation props we need to search
+         * for a fallback value to animate to. These values are tracked in baseTarget.
+         */
+        var baseTarget = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, latestValues);
+        // Internal methods ========================
+        /**
+         * On mount, this will be hydrated with a callback to disconnect
+         * this visual element from its parent on unmount.
+         */
+        var removeFromMotionTree;
+        var removeFromVariantTree;
+        /**
+         *
+         */
+        function mount() {
+            element.pointTo(element);
+            removeFromMotionTree = parent === null || parent === void 0 ? void 0 : parent.addChild(element);
+            if (isVariantNode && parent && !isControllingVariants) {
+                removeFromVariantTree = parent === null || parent === void 0 ? void 0 : parent.addVariantChild(element);
+            }
+            onMount === null || onMount === void 0 ? void 0 : onMount(element, instance, renderState);
+        }
+        /**
+         *
+         */
+        function unmount() {
+            framesync__WEBPACK_IMPORTED_MODULE_0__.cancelSync.update(update);
+            framesync__WEBPACK_IMPORTED_MODULE_0__.cancelSync.render(render);
+            framesync__WEBPACK_IMPORTED_MODULE_0__.cancelSync.preRender(element.updateLayoutProjection);
+            valueSubscriptions.forEach(function (remove) { return remove(); });
+            element.stopLayoutAnimation();
+            removeFromMotionTree === null || removeFromMotionTree === void 0 ? void 0 : removeFromMotionTree();
+            removeFromVariantTree === null || removeFromVariantTree === void 0 ? void 0 : removeFromVariantTree();
+            unsubscribeFromLeadVisualElement === null || unsubscribeFromLeadVisualElement === void 0 ? void 0 : unsubscribeFromLeadVisualElement();
+            lifecycles.clearAllListeners();
+        }
+        /**
+         *
+         */
+        function isProjecting() {
+            return projection.isEnabled && layoutState.isHydrated;
+        }
+        /**
+         *
+         */
+        function render() {
+            if (!instance)
+                return;
+            if (isProjecting()) {
+                /**
+                 * Apply the latest user-set transforms to the targetBox to produce the targetBoxFinal.
+                 * This is the final box that we will then project into by calculating a transform delta and
+                 * applying it to the corrected box.
+                 */
+                applyBoxTransforms(leadProjection.targetFinal, leadProjection.target, leadLatestValues);
+                /**
+                 * Update the delta between the corrected box and the final target box, after
+                 * user-set transforms are applied to it. This will be used by the renderer to
+                 * create a transform style that will reproject the element from its actual layout
+                 * into the desired bounding box.
+                 */
+                updateBoxDelta(layoutState.deltaFinal, layoutState.layoutCorrected, leadProjection.targetFinal, latestValues);
+            }
+            triggerBuild();
+            renderInstance(instance, renderState);
+        }
+        function triggerBuild() {
+            var valuesToRender = latestValues;
+            if (crossfader && crossfader.isActive()) {
+                valuesToRender = crossfader.getCrossfadeState(element);
+            }
+            build(element, renderState, valuesToRender, leadProjection, layoutState, options, props);
+        }
+        function update() {
+            lifecycles.notifyUpdate(latestValues);
+        }
+        function updateLayoutProjection() {
+            var delta = layoutState.delta, treeScale = layoutState.treeScale;
+            var prevTreeScaleX = treeScale.x;
+            var prevTreeScaleY = treeScale.x;
+            var prevDeltaTransform = layoutState.deltaTransform;
+            updateLayoutDeltas(layoutState, leadProjection, element.path, latestValues);
+            hasViewportBoxUpdated &&
+                element.notifyViewportBoxUpdate(leadProjection.target, delta);
+            hasViewportBoxUpdated = false;
+            var deltaTransform = buildLayoutProjectionTransform(delta, treeScale);
+            if (deltaTransform !== prevDeltaTransform ||
+                // Also compare calculated treeScale, for values that rely on this only for scale correction
+                prevTreeScaleX !== treeScale.x ||
+                prevTreeScaleY !== treeScale.y) {
+                element.scheduleRender();
+            }
+            layoutState.deltaTransform = deltaTransform;
+        }
+        /**
+         *
+         */
+        function bindToMotionValue(key, value) {
+            var removeOnChange = value.onChange(function (latestValue) {
+                latestValues[key] = latestValue;
+                props.onUpdate && framesync__WEBPACK_IMPORTED_MODULE_0__.default.update(update, false, true);
+            });
+            var removeOnRenderRequest = value.onRenderRequest(element.scheduleRender);
+            valueSubscriptions.set(key, function () {
+                removeOnChange();
+                removeOnRenderRequest();
+            });
+        }
+        /**
+         * Any motion values that are provided to the element when created
+         * aren't yet bound to the element, as this would technically be impure.
+         * However, we iterate through the motion values and set them to the
+         * initial values for this component.
+         *
+         * TODO: This is impure and we should look at changing this to run on mount.
+         * Doing so will break some tests but this isn't neccessarily a breaking change,
+         * more a reflection of the test.
+         */
+        var initialMotionValues = scrapeMotionValuesFromProps(props);
+        for (var key in initialMotionValues) {
+            var value = initialMotionValues[key];
+            if (latestValues[key] !== undefined && isMotionValue(value)) {
+                value.set(latestValues[key], false);
+            }
+        }
+        /**
+         * Determine what role this visual element should take in the variant tree.
+         */
+        var isControllingVariants = checkIfControllingVariants(props);
+        var definesInitialVariant = isVariantLabel(props.initial);
+        var isVariantNode = Boolean(definesInitialVariant || isControllingVariants || props.variants);
+        var element = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ treeType: treeType, 
+            /**
+             * This is a mirror of the internal instance prop, which keeps
+             * VisualElement type-compatible with React's RefObject.
+             */
+            current: null, 
+            /**
+             * The depth of this visual element within the visual element tree.
+             */
+            depth: parent ? parent.depth + 1 : 0, 
+            /**
+             * An ancestor path back to the root visual element. This is used
+             * by layout projection to quickly recurse back up the tree.
+             */
+            path: parent ? (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(parent.path, [parent]) : [], 
+            /**
+             *
+             */
+            presenceId: presenceId,
+            projection: projection, 
+            /**
+             * If this component is part of the variant tree, it should track
+             * any children that are also part of the tree. This is essentially
+             * a shadow tree to simplify logic around how to stagger over children.
+             */
+            variantChildren: isVariantNode ? new Set() : undefined, 
+            /**
+             * Whether this instance is visible. This can be changed imperatively
+             * by AnimateSharedLayout, is analogous to CSS's visibility in that
+             * hidden elements should take up layout, and needs enacting by the configured
+             * render function.
+             */
+            isVisible: undefined, 
+            /**
+             * Normally, if a component is controlled by a parent's variants, it can
+             * rely on that ancestor to trigger animations further down the tree.
+             * However, if a component is created after its parent is mounted, the parent
+             * won't trigger that mount animation so the child needs to.
+             *
+             * TODO: This might be better replaced with a method isParentMounted
+             */
+            manuallyAnimateOnMount: Boolean(parent === null || parent === void 0 ? void 0 : parent.isMounted()), 
+            /**
+             * This can be set by AnimatePresence to force components that mount
+             * at the same time as it to mount as if they have initial={false} set.
+             */
+            blockInitialAnimation: blockInitialAnimation,
+            /**
+             * If a visual element is static, it's essentially in "pure" mode with
+             * no additional functionality like animations or gestures loaded in.
+             * This can be considered Framer canvas mode.
+             */
+            isStatic: isStatic, 
+            /**
+             * A boolean that can be used to determine whether to respect hover events.
+             * For layout measurements we often have to reposition the instance by
+             * removing its transform. This can trigger hover events, which is
+             * undesired.
+             */
+            isHoverEventsEnabled: true, 
+            /**
+             * Determine whether this component has mounted yet. This is mostly used
+             * by variant children to determine whether they need to trigger their
+             * own animations on mount.
+             */
+            isMounted: function () { return Boolean(instance); }, 
+            /**
+             * Add a child visual element to our set of children.
+             */
+            addChild: function (child) {
+                children.add(child);
+                return function () { return children.delete(child); };
+            },
+            /**
+             * Add a child visual element to our set of children.
+             */
+            addVariantChild: function (child) {
+                var _a;
+                var closestVariantNode = element.getClosestVariantNode();
+                if (closestVariantNode) {
+                    (_a = closestVariantNode.variantChildren) === null || _a === void 0 ? void 0 : _a.add(child);
+                    return function () { return closestVariantNode.variantChildren.delete(child); };
+                }
+            },
+            sortNodePosition: function (other) {
+                /**
+                 * If these nodes aren't even of the same type we can't compare their depth.
+                 */
+                if (!sortNodePosition || treeType !== other.treeType)
+                    return 0;
+                return sortNodePosition(element.getInstance(), other.getInstance());
+            }, 
+            /**
+             * Returns the closest variant node in the tree starting from
+             * this visual element.
+             */
+            getClosestVariantNode: function () {
+                return isVariantNode ? element : parent === null || parent === void 0 ? void 0 : parent.getClosestVariantNode();
+            }, 
+            /**
+             * A method that schedules an update to layout projections throughout
+             * the tree. We inherit from the parent so there's only ever one
+             * job scheduled on the next frame - that of the root visual element.
+             */
+            scheduleUpdateLayoutProjection: parent
+                ? parent.scheduleUpdateLayoutProjection
+                : function () { return framesync__WEBPACK_IMPORTED_MODULE_0__.default.preRender(element.updateLayoutProjection, false, true); }, 
+            /**
+             * Expose the latest layoutId prop.
+             */
+            getLayoutId: function () { return props.layoutId; }, 
+            /**
+             * Returns the current instance.
+             */
+            getInstance: function () { return instance; }, 
+            /**
+             * Get/set the latest static values.
+             */
+            getStaticValue: function (key) { return latestValues[key]; }, setStaticValue: function (key, value) { return (latestValues[key] = value); }, 
+            /**
+             * Returns the latest motion value state. Currently only used to take
+             * a snapshot of the visual element - perhaps this can return the whole
+             * visual state
+             */
+            getLatestValues: function () { return latestValues; }, 
+            /**
+             * Replaces the current mutable states with fresh ones. This is used
+             * in static mode where rather than creating a new visual element every
+             * render we can just make fresh state.
+             */
+            clearState: function (newProps) {
+                values.clear();
+                props = newProps;
+                leadLatestValues = latestValues = createVisualState(props, parent, blockInitialAnimation);
+                renderState = createRenderState();
+            },
+            /**
+             * Set the visiblity of the visual element. If it's changed, schedule
+             * a render to reflect these changes.
+             */
+            setVisibility: function (visibility) {
+                if (element.isVisible === visibility)
+                    return;
+                element.isVisible = visibility;
+                element.scheduleRender();
+            },
+            /**
+             * Make a target animatable by Popmotion. For instance, if we're
+             * trying to animate width from 100px to 100vw we need to measure 100vw
+             * in pixels to determine what we really need to animate to. This is also
+             * pluggable to support Framer's custom value types like Color,
+             * and CSS variables.
+             */
+            makeTargetAnimatable: function (target, canMutate) {
+                if (canMutate === void 0) { canMutate = true; }
+                return makeTargetAnimatable(element, target, props, canMutate);
+            },
+            /**
+             * Temporarily suspend hover events while we remove transforms in order to measure the layout.
+             *
+             * This seems like an odd bit of scheduling but what we're doing is saying after
+             * the next render, wait 10 milliseconds before reenabling hover events. Waiting until
+             * the next frame results in missed, valid hover events. But triggering on the postRender
+             * frame is too soon to avoid triggering events with layout measurements.
+             *
+             * Note: If we figure out a way of measuring layout while transforms remain applied, this can be removed.
+             */
+            suspendHoverEvents: function () {
+                element.isHoverEventsEnabled = false;
+                framesync__WEBPACK_IMPORTED_MODULE_0__.default.postRender(function () {
+                    return setTimeout(function () { return (element.isHoverEventsEnabled = true); }, 10);
+                });
+            },
+            // Motion values ========================
+            /**
+             * Add a motion value and bind it to this visual element.
+             */
+            addValue: function (key, value) {
+                // Remove existing value if it exists
+                if (element.hasValue(key))
+                    element.removeValue(key);
+                values.set(key, value);
+                latestValues[key] = value.get();
+                bindToMotionValue(key, value);
+            },
+            /**
+             * Remove a motion value and unbind any active subscriptions.
+             */
+            removeValue: function (key) {
+                var _a;
+                values.delete(key);
+                (_a = valueSubscriptions.get(key)) === null || _a === void 0 ? void 0 : _a();
+                valueSubscriptions.delete(key);
+                delete latestValues[key];
+                removeValueFromMutableState(key, renderState);
+            }, 
+            /**
+             * Check whether we have a motion value for this key
+             */
+            hasValue: function (key) { return values.has(key); }, 
+            /**
+             * Get a motion value for this key. If called with a default
+             * value, we'll create one if none exists.
+             */
+            getValue: function (key, defaultValue) {
+                var value = values.get(key);
+                if (value === undefined && defaultValue !== undefined) {
+                    value = motionValue(defaultValue);
+                    element.addValue(key, value);
+                }
+                return value;
+            }, 
+            /**
+             * Iterate over our motion values.
+             */
+            forEachValue: function (callback) { return values.forEach(callback); }, 
+            /**
+             * If we're trying to animate to a previously unencountered value,
+             * we need to check for it in our state and as a last resort read it
+             * directly from the instance (which might have performance implications).
+             */
+            readValue: function (key) { var _a; return (_a = latestValues[key]) !== null && _a !== void 0 ? _a : readValueFromInstance(instance, key, options); }, 
+            /**
+             * Set the base target to later animate back to. This is currently
+             * only hydrated on creation and when we first read a value.
+             */
+            setBaseTarget: function (key, value) {
+                baseTarget[key] = value;
+            },
+            /**
+             * Find the base target for a value thats been removed from all animation
+             * props.
+             */
+            getBaseTarget: function (key) {
+                if (getBaseTarget) {
+                    var target = getBaseTarget(props, key);
+                    if (target !== undefined && !isMotionValue(target))
+                        return target;
+                }
+                return baseTarget[key];
+            } }, lifecycles), { 
+            /**
+             * A ref function to be provided to the mounting React component.
+             * This is used to hydrated the instance and run mount/unmount lifecycles.
+             */
+            ref: function (mountingElement) {
+                instance = element.current = mountingElement;
+                mountingElement ? mount() : unmount();
+                if (!externalRef)
+                    return;
+                if (typeof externalRef === "function") {
+                    externalRef(mountingElement);
+                }
+                else if (isRefObject(externalRef)) {
+                    externalRef.current = mountingElement;
+                }
+            },
+            /**
+             * Build the renderer state based on the latest visual state.
+             */
+            build: function () {
+                triggerBuild();
+                return renderState;
+            },
+            /**
+             * Schedule a render on the next animation frame.
+             */
+            scheduleRender: function () {
+                framesync__WEBPACK_IMPORTED_MODULE_0__.default.render(render, false, true);
+            }, 
+            /**
+             * Synchronously fire render. It's prefered that we batch renders but
+             * in many circumstances, like layout measurement, we need to run this
+             * synchronously. However in those instances other measures should be taken
+             * to batch reads/writes.
+             */
+            syncRender: render, 
+            /**
+             * Update the provided props. Ensure any newly-added motion values are
+             * added to our map, old ones removed, and listeners updated.
+             */
+            setProps: function (newProps) {
+                props = newProps;
+                lifecycles.updatePropListeners(newProps);
+                prevMotionValues = updateMotionValuesFromProps(element, scrapeMotionValuesFromProps(props), prevMotionValues);
+            }, getProps: function () { return props; }, 
+            // Variants ==============================
+            /**
+             * Returns the variant definition with a given name.
+             */
+            getVariant: function (name) { var _a; return (_a = props.variants) === null || _a === void 0 ? void 0 : _a[name]; }, 
+            /**
+             * Returns the defined default transition on this component.
+             */
+            getDefaultTransition: function () { return props.transition; }, 
+            /**
+             * Used by child variant nodes to get the closest ancestor variant props.
+             */
+            getVariantContext: function (startAtParent) {
+                if (startAtParent === void 0) { startAtParent = false; }
+                if (startAtParent)
+                    return parent === null || parent === void 0 ? void 0 : parent.getVariantContext();
+                if (!isControllingVariants) {
+                    var context_1 = (parent === null || parent === void 0 ? void 0 : parent.getVariantContext()) || {};
+                    if (props.initial !== undefined) {
+                        context_1.initial = props.initial;
+                    }
+                    return context_1;
+                }
+                var context = {};
+                for (var i = 0; i < numVariantProps; i++) {
+                    var name_1 = variantProps[i];
+                    var prop = props[name_1];
+                    if (isVariantLabel(prop) || prop === false) {
+                        context[name_1] = prop;
+                    }
+                }
+                return context;
+            },
+            // Layout projection ==============================
+            /**
+             * Enable layout projection for this visual element. Won't actually
+             * occur until we also have hydrated layout measurements.
+             */
+            enableLayoutProjection: function () {
+                projection.isEnabled = true;
+            },
+            /**
+             * Lock the projection target, for instance when dragging, so
+             * nothing else can try and animate it.
+             */
+            lockProjectionTarget: function () {
+                projection.isTargetLocked = true;
+            },
+            unlockProjectionTarget: function () {
+                element.stopLayoutAnimation();
+                projection.isTargetLocked = false;
+            },
+            /**
+             * Record the viewport box as it was before an expected mutation/re-render
+             */
+            snapshotViewportBox: function () {
+                // TODO: Store this snapshot in LayoutState
+                element.prevViewportBox = element.measureViewportBox(false);
+                /**
+                 * Update targetBox to match the prevViewportBox. This is just to ensure
+                 * that targetBox is affected by scroll in the same way as the measured box
+                 */
+                element.rebaseProjectionTarget(false, element.prevViewportBox);
+            }, getLayoutState: function () { return layoutState; }, setCrossfader: function (newCrossfader) {
+                crossfader = newCrossfader;
+            },
+            /**
+             * Start a layout animation on a given axis.
+             * TODO: This could be better.
+             */
+            startLayoutAnimation: function (axis, transition) {
+                var progress = element.getProjectionAnimationProgress()[axis];
+                var _a = projection.target[axis], min = _a.min, max = _a.max;
+                var length = max - min;
+                progress.clearListeners();
+                progress.set(min);
+                progress.set(min); // Set twice to hard-reset velocity
+                progress.onChange(function (v) {
+                    return element.setProjectionTargetAxis(axis, v, v + length);
+                });
+                return element.animateMotionValue(axis, progress, 0, transition);
+            },
+            /**
+             * Stop layout animations.
+             */
+            stopLayoutAnimation: function () {
+                eachAxis(function (axis) {
+                    return element.getProjectionAnimationProgress()[axis].stop();
+                });
+            },
+            /**
+             * Measure the current viewport box with or without transforms.
+             * Only measures axis-aligned boxes, rotate and skew must be manually
+             * removed with a re-render to work.
+             */
+            measureViewportBox: function (withTransform) {
+                if (withTransform === void 0) { withTransform = true; }
+                var viewportBox = measureViewportBox(instance, options);
+                if (!withTransform)
+                    removeBoxTransforms(viewportBox, latestValues);
+                return viewportBox;
+            },
+            /**
+             * Update the layoutState by measuring the DOM layout. This
+             * should be called after resetting any layout-affecting transforms.
+             */
+            updateLayoutMeasurement: function () {
+                element.notifyBeforeLayoutMeasure(layoutState.layout);
+                layoutState.isHydrated = true;
+                layoutState.layout = element.measureViewportBox();
+                layoutState.layoutCorrected = copyAxisBox(layoutState.layout);
+                element.notifyLayoutMeasure(layoutState.layout, element.prevViewportBox || layoutState.layout);
+                framesync__WEBPACK_IMPORTED_MODULE_0__.default.update(function () { return element.rebaseProjectionTarget(); });
+            },
+            /**
+             * Get the motion values tracking the layout animations on each
+             * axis. Lazy init if not already created.
+             */
+            getProjectionAnimationProgress: function () {
+                projectionTargetProgress || (projectionTargetProgress = {
+                    x: motionValue(0),
+                    y: motionValue(0),
+                });
+                return projectionTargetProgress;
+            },
+            /**
+             * Update the projection of a single axis. Schedule an update to
+             * the tree layout projection.
+             */
+            setProjectionTargetAxis: function (axis, min, max) {
+                var target = projection.target[axis];
+                target.min = min;
+                target.max = max;
+                // Flag that we want to fire the onViewportBoxUpdate event handler
+                hasViewportBoxUpdated = true;
+                lifecycles.notifySetAxisTarget();
+            },
+            /**
+             * Rebase the projection target on top of the provided viewport box
+             * or the measured layout. This ensures that non-animating elements
+             * don't fall out of sync differences in measurements vs projections
+             * after a page scroll or other relayout.
+             */
+            rebaseProjectionTarget: function (force, box) {
+                if (box === void 0) { box = layoutState.layout; }
+                var _a = element.getProjectionAnimationProgress(), x = _a.x, y = _a.y;
+                var shouldRebase = !projection.isTargetLocked &&
+                    !x.isAnimating() &&
+                    !y.isAnimating();
+                if (force || shouldRebase) {
+                    eachAxis(function (axis) {
+                        var _a = box[axis], min = _a.min, max = _a.max;
+                        element.setProjectionTargetAxis(axis, min, max);
+                    });
+                }
+            },
+            /**
+             * Notify the visual element that its layout is up-to-date.
+             * Currently Animate.tsx uses this to check whether a layout animation
+             * needs to be performed.
+             */
+            notifyLayoutReady: function (config) {
+                element.notifyLayoutUpdate(layoutState.layout, element.prevViewportBox || layoutState.layout, config);
+            }, 
+            /**
+             * Temporarily reset the transform of the instance.
+             */
+            resetTransform: function () { return resetTransform(element, instance, props); }, 
+            /**
+             * Perform the callback after temporarily unapplying the transform
+             * upwards through the tree.
+             */
+            withoutTransform: function (callback) {
+                var isEnabled = projection.isEnabled;
+                isEnabled && element.resetTransform();
+                parent ? parent.withoutTransform(callback) : callback();
+                isEnabled && restoreTransform(instance, renderState);
+            },
+            updateLayoutProjection: function () {
+                isProjecting() && updateLayoutProjection();
+                children.forEach(fireUpdateLayoutProjection);
+            },
+            /**
+             *
+             */
+            pointTo: function (newLead) {
+                leadProjection = newLead.projection;
+                leadLatestValues = newLead.getLatestValues();
+                /**
+                 * Subscribe to lead component's layout animations
+                 */
+                unsubscribeFromLeadVisualElement === null || unsubscribeFromLeadVisualElement === void 0 ? void 0 : unsubscribeFromLeadVisualElement();
+                unsubscribeFromLeadVisualElement = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.pipe)(newLead.onSetAxisTarget(element.scheduleUpdateLayoutProjection), newLead.onLayoutAnimationComplete(function () {
+                    var _a;
+                    if (element.isPresent) {
+                        element.presence = Presence.Present;
+                    }
+                    else {
+                        (_a = element.layoutSafeToRemove) === null || _a === void 0 ? void 0 : _a.call(element);
+                    }
+                }));
+            }, 
+            // TODO: Clean this up
+            isPresent: true, presence: Presence.Entering });
+        return element;
+    };
+};
+function fireUpdateLayoutProjection(child) {
+    child.updateLayoutProjection();
+}
+var variantProps = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(["initial"], variantPriorityOrder);
+var numVariantProps = variantProps.length;
 
 /**
  * Measure and return the element bounding box.
@@ -9426,9 +11024,103 @@ function getBoundingBox(element, transformPagePoint) {
     return convertBoundingBoxToAxisBox(transformBoundingBox(box, transformPagePoint));
 }
 
-var isKeyframesTarget = function (v) {
-    return Array.isArray(v);
-};
+/**
+ * Returns true if the provided key is a CSS variable
+ */
+function isCSSVariable$1(key) {
+    return key.startsWith("--");
+}
+
+function buildHTMLStyles(state, latestValues, projection, layoutState, options, transformTemplate) {
+    var _a;
+    var style = state.style, vars = state.vars, transform = state.transform, transformKeys = state.transformKeys, transformOrigin = state.transformOrigin;
+    // Empty the transformKeys array. As we're throwing out refs to its items
+    // this might not be as cheap as suspected. Maybe using the array as a buffer
+    // with a manual incrementation would be better.
+    transformKeys.length = 0;
+    // Track whether we encounter any transform or transformOrigin values.
+    var hasTransform = false;
+    var hasTransformOrigin = false;
+    // Does the calculated transform essentially equal "none"?
+    var transformIsNone = true;
+    /**
+     * Loop over all our latest animated values and decide whether to handle them
+     * as a style or CSS variable.
+     *
+     * Transforms and transform origins are kept seperately for further processing.
+     */
+    for (var key in latestValues) {
+        var value = latestValues[key];
+        /**
+         * If this is a CSS variable we don't do any further processing.
+         */
+        if (isCSSVariable$1(key)) {
+            vars[key] = value;
+            continue;
+        }
+        // Convert the value to its default value type, ie 0 -> "0px"
+        var valueType = getDefaultValueType(key);
+        var valueAsType = getValueAsType(value, valueType);
+        if (isTransformProp(key)) {
+            // If this is a transform, flag to enable further transform processing
+            hasTransform = true;
+            transform[key] = valueAsType;
+            transformKeys.push(key);
+            // If we already know we have a non-default transform, early return
+            if (!transformIsNone)
+                continue;
+            // Otherwise check to see if this is a default transform
+            if (value !== ((_a = valueType.default) !== null && _a !== void 0 ? _a : 0))
+                transformIsNone = false;
+        }
+        else if (isTransformOriginProp(key)) {
+            transformOrigin[key] = valueAsType;
+            // If this is a transform origin, flag and enable further transform-origin processing
+            hasTransformOrigin = true;
+        }
+        else {
+            /**
+             * If layout projection is on, and we need to perform scale correction for this
+             * value type, perform it.
+             */
+            if (layoutState.isHydrated && valueScaleCorrection[key]) {
+                var correctedValue = valueScaleCorrection[key].process(value, layoutState, projection);
+                /**
+                 * Scale-correctable values can define a number of other values to break
+                 * down into. For instance borderRadius needs applying to borderBottomLeftRadius etc
+                 */
+                var applyTo = valueScaleCorrection[key].applyTo;
+                if (applyTo) {
+                    var num = applyTo.length;
+                    for (var i = 0; i < num; i++) {
+                        style[applyTo[i]] = correctedValue;
+                    }
+                }
+                else {
+                    style[key] = correctedValue;
+                }
+            }
+            else {
+                style[key] = valueAsType;
+            }
+        }
+    }
+    if (projection.isEnabled && layoutState.isHydrated) {
+        style.transform = buildLayoutProjectionTransform(layoutState.deltaFinal, layoutState.treeScale, hasTransform ? transform : undefined);
+        if (transformTemplate) {
+            style.transform = transformTemplate(transform, style.transform);
+        }
+        style.transformOrigin = buildLayoutProjectionTransformOrigin(layoutState);
+    }
+    else {
+        if (hasTransform) {
+            style.transform = buildTransform(state, options, transformIsNone, transformTemplate);
+        }
+        if (hasTransformOrigin) {
+            style.transformOrigin = buildTransformOrigin(transformOrigin);
+        }
+    }
+}
 
 var positionalKeys = new Set([
     "width",
@@ -9496,7 +11188,7 @@ function removeNonTranslationalTransform(visualElement) {
     });
     // Apply changes to element before measurement
     if (removedTransforms.length)
-        visualElement.render();
+        visualElement.syncRender();
     return removedTransforms;
 }
 var positionalValues = {
@@ -9532,18 +11224,19 @@ var positionalValues = {
     y: getTranslateFromMatrix(5, 14),
 };
 var convertChangedValueTypes = function (target, visualElement, changedKeys) {
-    var originBbox = visualElement.getBoundingBox();
-    var elementComputedStyle = visualElement.getComputedStyle();
+    var originBbox = visualElement.measureViewportBox();
+    var element = visualElement.getInstance();
+    var elementComputedStyle = getComputedStyle(element);
     var display = elementComputedStyle.display, top = elementComputedStyle.top, left = elementComputedStyle.left, bottom = elementComputedStyle.bottom, right = elementComputedStyle.right, transform = elementComputedStyle.transform;
     var originComputedStyle = { top: top, left: left, bottom: bottom, right: right, transform: transform };
     // If the element is currently set to display: "none", make it visible before
     // measuring the target bounding box
     if (display === "none") {
-        visualElement.setStaticValues("display", target.display || "block");
+        visualElement.setStaticValue("display", target.display || "block");
     }
     // Apply the latest values (as set in checkAndConvertChangedValueTypes)
-    visualElement.render();
-    var targetBbox = visualElement.getBoundingBox();
+    visualElement.syncRender();
+    var targetBbox = visualElement.measureViewportBox();
     changedKeys.forEach(function (key) {
         // Restore styles to their **calculated computed style**, not their actual
         // originally set style. This allows us to animate between equivalent pixel units.
@@ -9644,7 +11337,7 @@ var checkAndConvertChangedValueTypes = function (visualElement, target, origin, 
             });
         }
         // Reapply original values
-        visualElement.render();
+        visualElement.syncRender();
         return { target: convertedTarget, transitionEnd: transitionEnd };
     }
     else {
@@ -9675,348 +11368,84 @@ var parseDomVariant = function (visualElement, target, origin, transitionEnd) {
     return unitConversion(visualElement, target, origin, transitionEnd);
 };
 
-/**
- * Check if value is a numerical string, ie a string that is purely a number eg "100" or "-100.1"
- */
-var isNumericalString = function (v) { return /^\-?\d*\.?\d+$/.test(v); };
-
-var isCustomValue = function (v) {
-    return Boolean(v && typeof v === "object" && v.mix && v.toValue);
-};
-var resolveFinalValueInKeyframes = function (v) {
-    // TODO maybe throw if v.length - 1 is placeholder token?
-    return isKeyframesTarget(v) ? v[v.length - 1] || 0 : v;
-};
-
-/**
- * Decides if the supplied variable is an array of variant labels
- */
-function isVariantLabels(v) {
-    return Array.isArray(v);
+function getComputedStyle$1(element) {
+    return window.getComputedStyle(element);
 }
-/**
- * Decides if the supplied variable is variant label
- */
-function isVariantLabel(v) {
-    return typeof v === "string" || isVariantLabels(v);
-}
-/**
- * Creates an object containing the latest state of every MotionValue on a VisualElement
- */
-function getCurrent(visualElement) {
-    var current = {};
-    visualElement.forEachValue(function (value, key) { return (current[key] = value.get()); });
-    return current;
-}
-/**
- * Creates an object containing the latest velocity of every MotionValue on a VisualElement
- */
-function getVelocity(visualElement) {
-    var velocity = {};
-    visualElement.forEachValue(function (value, key) { return (velocity[key] = value.getVelocity()); });
-    return velocity;
-}
-/**
- * Resovles a variant if it's a variant resolver
- */
-function resolveVariant(visualElement, definition, custom) {
-    if (typeof definition === "string") {
-        definition = visualElement.getVariant(definition);
-    }
-    return typeof definition === "function"
-        ? definition(custom !== null && custom !== void 0 ? custom : visualElement.getVariantPayload(), getCurrent(visualElement), getVelocity(visualElement))
-        : definition;
-}
-
-/**
- * Set VisualElement's MotionValue, creating a new MotionValue for it if
- * it doesn't exist.
- */
-function setMotionValue(visualElement, key, value) {
-    if (visualElement.hasValue(key)) {
-        visualElement.getValue(key).set(value);
-    }
-    else {
-        visualElement.addValue(key, motionValue(value));
-    }
-}
-function setTarget(visualElement, definition) {
-    var resolved = resolveVariant(visualElement, definition);
-    var _a = resolved
-        ? visualElement.makeTargetAnimatable(resolved, false)
-        : {}, _b = _a.transitionEnd, transitionEnd = _b === void 0 ? {} : _b, _c = _a.transition, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["transitionEnd", "transition"]);
-    target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, target), transitionEnd);
-    for (var key in target) {
-        var value = resolveFinalValueInKeyframes(target[key]);
-        setMotionValue(visualElement, key, value);
-    }
-}
-function setVariants(visualElement, variantLabels) {
-    var reversedLabels = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(variantLabels).reverse();
-    reversedLabels.forEach(function (key) {
-        var _a;
-        setTarget(visualElement, visualElement.getVariant(key));
-        (_a = visualElement.variantChildren) === null || _a === void 0 ? void 0 : _a.forEach(function (child) {
-            setVariants(child, variantLabels);
-        });
-    });
-}
-function setValues(visualElement, definition) {
-    if (Array.isArray(definition)) {
-        return setVariants(visualElement, definition);
-    }
-    else if (typeof definition === "string") {
-        return setVariants(visualElement, [definition]);
-    }
-    else {
-        setTarget(visualElement, definition);
-    }
-}
-function checkTargetForNewValues(visualElement, target, origin) {
-    var _a, _b;
-    var _c;
-    var newValueKeys = Object.keys(target).filter(function (key) { return !visualElement.hasValue(key); });
-    var numNewValues = newValueKeys.length;
-    if (!numNewValues)
-        return;
-    for (var i = 0; i < numNewValues; i++) {
-        var key = newValueKeys[i];
-        var targetValue = target[key];
-        var value = null;
-        // If this is a keyframes value, we can attempt to use the first value in the
-        // array as that's going to be the first value of the animation anyway
-        if (Array.isArray(targetValue)) {
-            value = targetValue[0];
-        }
-        // If it isn't a keyframes or the first keyframes value was set as `null`, read the
-        // value from the DOM. It might be worth investigating whether to check props (for SVG)
-        // or props.style (for HTML) if the value exists there before attempting to read.
-        if (value === null) {
-            var readValue = (_a = origin[key]) !== null && _a !== void 0 ? _a : visualElement.readNativeValue(key);
-            value = readValue !== undefined ? readValue : target[key];
-            (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(value !== null, "No initial value for \"" + key + "\" can be inferred. Ensure an initial value for \"" + key + "\" is defined on the component.");
-        }
-        if (typeof value === "string" && isNumericalString(value)) {
-            // If this is a number read as a string, ie "0" or "200", convert it to a number
-            value = parseFloat(value);
-        }
-        else if (!findValueType(value) && style_value_types__WEBPACK_IMPORTED_MODULE_5__.complex.test(targetValue)) {
-            value = getAnimatableNone(key, targetValue);
-        }
-        visualElement.addValue(key, motionValue(value));
-        (_b = (_c = origin)[key]) !== null && _b !== void 0 ? _b : (_c[key] = value);
-        visualElement.baseTarget[key] = value;
-    }
-}
-function getOriginFromTransition(key, transition) {
-    if (!transition)
-        return;
-    var valueTransition = transition[key] || transition["default"] || transition;
-    return valueTransition.from;
-}
-function getOrigin(target, transition, visualElement) {
-    var _a, _b;
-    var origin = {};
-    for (var key in target) {
-        origin[key] = (_a = getOriginFromTransition(key, transition)) !== null && _a !== void 0 ? _a : (_b = visualElement.getValue(key)) === null || _b === void 0 ? void 0 : _b.get();
-    }
-    return origin;
-}
-
-var isMotionValue = function (value) {
-    return value instanceof MotionValue;
-};
-
-/**
- * A VisualElement for HTMLElements
- */
-var HTMLVisualElement = /** @class */ (function (_super) {
-    (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__extends)(HTMLVisualElement, _super);
-    function HTMLVisualElement() {
-        var _this = _super !== null && _super.apply(this, arguments) || this;
-        /**
-         *
-         */
-        _this.defaultConfig = {
-            enableHardwareAcceleration: true,
-            allowTransformNone: true,
-        };
-        /**
-         * A mutable record of styles we want to apply directly to the rendered Element
-         * every frame. We use a mutable data structure to reduce GC during animations.
-         */
-        _this.style = {};
-        /**
-         * A record of styles we only want to apply via React. This gets set in useMotionValues
-         * and applied in the render function. I'd prefer this to live somewhere else to decouple
-         * VisualElement from React but works for now.
-         */
-        _this.reactStyle = {};
-        /**
-         * A mutable record of CSS variables we want to apply directly to the rendered Element
-         * every frame. We use a mutable data structure to reduce GC during animations.
-         */
-        _this.vars = {};
-        /**
-         * A mutable record of transforms we want to apply directly to the rendered Element
-         * every frame. We use a mutable data structure to reduce GC during animations.
-         */
-        _this.transform = {};
-        /**
-         * A mutable record of transform origins we want to apply directly to the rendered Element
-         * every frame. We use a mutable data structure to reduce GC during animations.
-         */
-        _this.transformOrigin = {};
-        /**
-         * A mutable record of transform keys we want to apply to the rendered Element. We order
-         * this to order transforms in the desired order. We use a mutable data structure to reduce GC during animations.
-         */
-        _this.transformKeys = [];
-        _this.config = _this.defaultConfig;
-        /**
-         * ========================================
-         * Layout
-         * ========================================
-         */
-        _this.isLayoutProjectionEnabled = false;
-        /**
-         * A set of layout update event handlers. These are only called once all layouts have been read,
-         * making it safe to perform DOM write operations.
-         */
-        _this.layoutUpdateListeners = new SubscriptionManager();
-        _this.layoutMeasureListeners = new SubscriptionManager();
-        _this.viewportBoxUpdateListeners = new SubscriptionManager();
-        /**
-         * Keep track of whether the viewport box has been updated since the last render.
-         * If it has, we want to fire the onViewportBoxUpdate listener.
-         */
-        _this.hasViewportBoxUpdated = false;
-        /**
-         * The visual target we want to project our component into on a given frame
-         * before applying transforms defined in `animate` or `style`.
-         *
-         * This is considered mutable to avoid object creation on each frame.
-         */
-        _this.targetBoxFinal = axisBox();
-        /**
-         * The overall scale of the local coordinate system as transformed by all parents
-         * of this component. We use this for scale correction on our calculated layouts
-         * and scale-affected values like `boxShadow`.
-         *
-         * This is considered mutable to avoid object creation on each frame.
-         */
-        _this.treeScale = { x: 1, y: 1 };
-        /**
-         * The delta between the boxCorrected and the desired
-         * targetBox (before user-set transforms are applied). The calculated output will be
-         * handed to the renderer and used as part of the style correction calculations, for
-         * instance calculating how to display the desired border-radius correctly.
-         *
-         * This is considered mutable to avoid object creation on each frame.
-         */
-        _this.delta = delta();
-        /**
-         * The delta between the boxCorrected and the desired targetBoxFinal. The calculated
-         * output will be handed to the renderer and used to project the boxCorrected into
-         * the targetBoxFinal.
-         *
-         * This is considered mutable to avoid object creation on each frame.
-         */
-        _this.deltaFinal = delta();
-        /**
-         * The computed transform string to apply deltaFinal to the element. Currently this is only
-         * being used to diff and decide whether to render on the current frame, but a minor optimisation
-         * could be to provide this to the buildHTMLStyle function.
-         */
-        _this.deltaTransform = identityProjection;
-        /**
-         *
-         */
-        _this.stopLayoutAxisAnimation = {
-            x: function () { },
-            y: function () { },
-        };
-        _this.isTargetBoxLocked = false;
-        _this.updateLayoutDelta = function () {
-            _this.isLayoutProjectionEnabled && _this.box && _this.updateLayoutDeltas();
-            /**
-             * Ensure all children layouts are also updated.
-             *
-             * This uses a pre-bound function executor rather than a lamda to avoid creating a new function
-             * multiple times per frame (source of mid-animation GC)
-             */
-            _this.children.forEach(fireUpdateLayoutDelta);
-        };
-        return _this;
-    }
-    /**
-     * When a value is removed, we want to make sure it's removed from all rendered data structures.
-     */
-    HTMLVisualElement.prototype.removeValue = function (key) {
-        _super.prototype.removeValue.call(this, key);
-        delete this.vars[key];
-        delete this.style[key];
-    };
-    /**
-     * Empty the mutable data structures by re-creating them. We can do this every React render
-     * as the comparative workload to the rest of the render is very low and this is also when
-     * we want to reflect values that might have been removed by the render.
-     */
-    HTMLVisualElement.prototype.clean = function () {
-        this.style = {};
-        this.vars = {};
-        this.transform = {};
-    };
-    HTMLVisualElement.prototype.updateConfig = function (config) {
-        if (config === void 0) { config = {}; }
-        this.config = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, this.defaultConfig), config);
-    };
-    /**
-     * Read a value directly from the HTMLElement style.
-     */
-    HTMLVisualElement.prototype.read = function (key) {
-        var computedStyle = this.getComputedStyle();
-        return ((isCSSVariable(key)
-            ? computedStyle.getPropertyValue(key)
-            : computedStyle[key]) || 0);
-    };
-    HTMLVisualElement.prototype.addValue = function (key, value) {
-        _super.prototype.addValue.call(this, key, value);
-        // If we have rotate values we want to foce the layoutOrigin used in layout projection
-        // to the center of the element.
-        if (key.startsWith("rotate"))
-            this.layoutOrigin = 0.5;
-    };
-    /**
-     * Read a value directly from the HTMLElement in case it's not defined by a Motion
-     * prop. If it's a transform, we just return a pre-defined default value as reading these
-     * out of a matrix is either error-prone or can incur a big payload for little benefit.
-     */
-    HTMLVisualElement.prototype.readNativeValue = function (key) {
+var htmlConfig = {
+    treeType: "dom",
+    readValueFromInstance: function (domElement, key) {
         if (isTransformProp(key)) {
-            var defaultValueType = getDefaultValueType(key);
-            return defaultValueType ? defaultValueType.default || 0 : 0;
+            var defaultType = getDefaultValueType(key);
+            return defaultType ? defaultType.default || 0 : 0;
         }
         else {
-            return this.read(key);
+            var computedStyle = getComputedStyle$1(domElement);
+            return ((isCSSVariable$1(key)
+                ? computedStyle.getPropertyValue(key)
+                : computedStyle[key]) || 0);
         }
-    };
-    HTMLVisualElement.prototype.getBaseValue = function (key, props) {
+    },
+    createRenderState: function () { return ({
+        style: {},
+        transform: {},
+        transformKeys: [],
+        transformOrigin: {},
+        vars: {},
+    }); },
+    sortNodePosition: function (a, b) {
+        /**
+         * compareDocumentPosition returns a bitmask, by using the bitwise &
+         * we're returning true if 2 in that bitmask is set to true. 2 is set
+         * to true if b preceeds a.
+         */
+        return a.compareDocumentPosition(b) & 2 ? 1 : -1;
+    },
+    getBaseTarget: function (props, key) {
         var _a;
-        var style = (_a = props.style) === null || _a === void 0 ? void 0 : _a[key];
-        return style !== undefined && !isMotionValue(style)
-            ? style
-            : _super.prototype.getBaseValue.call(this, key, props);
-    };
+        return (_a = props.style) === null || _a === void 0 ? void 0 : _a[key];
+    },
+    measureViewportBox: function (element, _a) {
+        var transformPagePoint = _a.transformPagePoint;
+        return getBoundingBox(element, transformPagePoint);
+    },
+    /**
+     * Reset the transform on the current Element. This is called as part
+     * of a batched process across the entire layout tree. To remove this write
+     * cycle it'd be interesting to see if it's possible to "undo" all the current
+     * layout transforms up the tree in the same way this.getBoundingBoxWithoutTransforms
+     * works
+     */
+    resetTransform: function (element, domElement, props) {
+        /**
+         * When we reset the transform of an element, there's a fair possibility that
+         * the element will visually move from underneath the pointer, triggering attached
+         * pointerenter/leave events. We temporarily suspend these while measurement takes place.
+         */
+        element.suspendHoverEvents();
+        var transformTemplate = props.transformTemplate;
+        domElement.style.transform = transformTemplate
+            ? transformTemplate({}, "")
+            : "none";
+        // Ensure that whatever happens next, we restore our transform on the next frame
+        element.scheduleRender();
+    },
+    restoreTransform: function (instance, mutableState) {
+        instance.style.transform = mutableState.style.transform;
+    },
+    removeValueFromMutableState: function (key, _a) {
+        var vars = _a.vars, style = _a.style;
+        delete vars[key];
+        delete style[key];
+    },
     /**
      * Ensure that HTML and Framer-specific value types like `px`->`%` and `Color`
      * can be animated by Motion.
      */
-    HTMLVisualElement.prototype.makeTargetAnimatable = function (_a, parseDOMValues) {
-        if (parseDOMValues === void 0) { parseDOMValues = true; }
+    makeTargetAnimatable: function (element, _a, _b, isMounted) {
+        var transformValues = _b.transformValues;
+        if (isMounted === void 0) { isMounted = true; }
         var transition = _a.transition, transitionEnd = _a.transitionEnd, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["transition", "transitionEnd"]);
-        var transformValues = this.config.transformValues;
-        var origin = getOrigin(target, transition || {}, this);
+        var origin = getOrigin(target, transition || {}, element);
         /**
          * If Framer has provided a function to convert `Color` etc value types, convert them
          */
@@ -10028,301 +11457,45 @@ var HTMLVisualElement = /** @class */ (function (_super) {
             if (origin)
                 origin = transformValues(origin);
         }
-        if (parseDOMValues) {
-            checkTargetForNewValues(this, target, origin);
-            var parsed = parseDomVariant(this, target, origin, transitionEnd);
+        if (isMounted) {
+            checkTargetForNewValues(element, target, origin);
+            var parsed = parseDomVariant(element, target, origin, transitionEnd);
             transitionEnd = parsed.transitionEnd;
             target = parsed.target;
         }
         return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ transition: transition,
             transitionEnd: transitionEnd }, target);
-    };
-    HTMLVisualElement.prototype.enableLayoutProjection = function () {
-        this.isLayoutProjectionEnabled = true;
-    };
-    HTMLVisualElement.prototype.hide = function () {
-        if (this.isVisible === false)
-            return;
-        this.isVisible = false;
-        this.scheduleRender();
-    };
-    HTMLVisualElement.prototype.show = function () {
-        if (this.isVisible === true)
-            return;
-        this.isVisible = true;
-        this.scheduleRender();
-    };
-    /**
-     * Register an event listener to fire when the layout is updated. We might want to expose support
-     * for this via a `motion` prop.
-     */
-    HTMLVisualElement.prototype.onLayoutUpdate = function (callback) {
-        return this.layoutUpdateListeners.add(callback);
-    };
-    HTMLVisualElement.prototype.onLayoutMeasure = function (callback) {
-        return this.layoutMeasureListeners.add(callback);
-    };
-    HTMLVisualElement.prototype.onViewportBoxUpdate = function (callback) {
-        return this.viewportBoxUpdateListeners.add(callback);
-    };
-    /**
-     * To be called when all layouts are successfully updated. In turn we can notify layoutUpdate
-     * subscribers.
-     */
-    HTMLVisualElement.prototype.layoutReady = function (config) {
-        this.layoutUpdateListeners.notify(this.box, this.prevViewportBox || this.box, config);
-    };
-    /**
-     * Measure and return the Element's bounding box. We convert it to a AxisBox2D
-     * structure to make it easier to work on each individual axis generically.
-     */
-    HTMLVisualElement.prototype.getBoundingBox = function () {
-        var transformPagePoint = this.config.transformPagePoint;
-        return getBoundingBox(this.element, transformPagePoint);
-    };
-    HTMLVisualElement.prototype.getBoundingBoxWithoutTransforms = function () {
-        var bbox = this.getBoundingBox();
-        removeBoxTransforms(bbox, this.latest);
-        return bbox;
-    };
-    /**
-     * Return the computed style after a render.
-     */
-    HTMLVisualElement.prototype.getComputedStyle = function () {
-        return window.getComputedStyle(this.element);
-    };
-    /**
-     * Record the bounding box as it exists before a re-render.
-     */
-    HTMLVisualElement.prototype.snapshotBoundingBox = function () {
-        this.prevViewportBox = this.getBoundingBoxWithoutTransforms();
-        /**
-         * Update targetBox to match the prevViewportBox. This is just to ensure
-         * that targetBox is affected by scroll in the same way as the measured box
-         */
-        this.rebaseTargetBox(false, this.prevViewportBox);
-    };
-    HTMLVisualElement.prototype.rebaseTargetBox = function (force, box) {
-        var _this = this;
-        if (force === void 0) { force = false; }
-        if (box === void 0) { box = this.box; }
-        var _a = this.getAxisProgress(), x = _a.x, y = _a.y;
-        var shouldRebase = this.box &&
-            !this.isTargetBoxLocked &&
-            !x.isAnimating() &&
-            !y.isAnimating();
-        if (force || shouldRebase) {
-            eachAxis(function (axis) {
-                var _a = box[axis], min = _a.min, max = _a.max;
-                _this.setAxisTarget(axis, min, max);
-            });
+    },
+    scrapeMotionValuesFromProps: function (props) {
+        var style = props.style;
+        var newValues = {};
+        for (var key in style) {
+            if (isMotionValue(style[key]) || isForcedMotionValue(key, props)) {
+                newValues[key] = style[key];
+            }
         }
-    };
-    HTMLVisualElement.prototype.measureLayout = function () {
-        var _this = this;
-        this.box = this.getBoundingBox();
-        this.boxCorrected = copyAxisBox(this.box);
-        if (!this.targetBox)
-            this.targetBox = copyAxisBox(this.box);
-        this.layoutMeasureListeners.notify(this.box, this.prevViewportBox || this.box);
-        framesync__WEBPACK_IMPORTED_MODULE_0__.default.update(function () { return _this.rebaseTargetBox(); });
-    };
-    HTMLVisualElement.prototype.lockTargetBox = function () {
-        this.isTargetBoxLocked = true;
-    };
-    HTMLVisualElement.prototype.unlockTargetBox = function () {
-        this.stopLayoutAnimation();
-        this.isTargetBoxLocked = false;
-    };
-    /**
-     * Reset the transform on the current Element. This is called as part
-     * of a batched process across the entire layout tree. To remove this write
-     * cycle it'd be interesting to see if it's possible to "undo" all the current
-     * layout transforms up the tree in the same way this.getBoundingBoxWithoutTransforms
-     * works
-     */
-    HTMLVisualElement.prototype.resetTransform = function () {
-        /**
-         * When we reset the transform of an element, there's a fair possibility that
-         * the element will visually move from underneath the pointer, triggering attached
-         * pointerenter/leave events. We temporarily suspend these while measurement takes place.
-         */
-        this.suspendHoverEvents();
-        var transformTemplate = this.config.transformTemplate;
-        this.element.style.transform = transformTemplate
-            ? transformTemplate({}, "")
-            : "none";
-        // Ensure that whatever happens next, we restore our transform
-        this.scheduleRender();
-    };
-    /**
-     * Set new min/max boundaries to project an axis into
-     */
-    HTMLVisualElement.prototype.setAxisTarget = function (axis, min, max) {
-        var targetAxis = this.targetBox[axis];
-        targetAxis.min = min;
-        targetAxis.max = max;
-        // Flag that we want to fire the onViewportBoxUpdate event handler
-        this.hasViewportBoxUpdated = true;
-        this.rootParent.scheduleUpdateLayoutDelta();
-    };
-    HTMLVisualElement.prototype.getAxisProgress = function () {
-        if (!this.axisProgress) {
-            this.axisProgress = {
-                x: motionValue(0),
-                y: motionValue(0),
-            };
+        return newValues;
+    },
+    build: function (element, renderState, latestValues, projection, layoutState, options, props) {
+        if (element.isVisible !== undefined) {
+            renderState.style.visibility = element.isVisible
+                ? "visible"
+                : "hidden";
         }
-        return this.axisProgress;
-    };
-    /**
-     *
-     */
-    HTMLVisualElement.prototype.startLayoutAxisAnimation = function (axis, transition) {
-        var _this = this;
-        var _a;
-        var progress = this.getAxisProgress()[axis];
-        var _b = this.targetBox[axis], min = _b.min, max = _b.max;
-        var length = max - min;
-        progress.clearListeners();
-        progress.set(min);
-        progress.set(min); // Set twice to hard-reset velocity
-        progress.onChange(function (v) { return _this.setAxisTarget(axis, v, v + length); });
-        return (_a = this.animateMotionValue) === null || _a === void 0 ? void 0 : _a.call(this, axis, progress, 0, transition);
-    };
-    HTMLVisualElement.prototype.stopLayoutAnimation = function () {
-        var _this = this;
-        eachAxis(function (axis) { return _this.getAxisProgress()[axis].stop(); });
-    };
-    HTMLVisualElement.prototype.withoutTransform = function (callback) {
-        if (this.isLayoutProjectionEnabled) {
-            this.resetTransform();
-        }
-        if (this.parent) {
-            this.parent.withoutTransform(callback);
-        }
-        else {
-            callback();
-        }
-        if (this.isLayoutProjectionEnabled) {
-            this.element.style.transform = this.style.transform;
-        }
-    };
-    /**
-     * Update the layout deltas to reflect the relative positions of the layout
-     * and the desired target box
-     */
-    HTMLVisualElement.prototype.updateLayoutDeltas = function () {
-        /**
-         * Reset the corrected box with the latest values from box, as we're then going
-         * to perform mutative operations on it.
-         */
-        resetBox(this.boxCorrected, this.box);
-        var prevTreeScaleX = this.treeScale.x;
-        var prevTreeScaleY = this.treeScale.y;
-        /**
-         * Apply all the parent deltas to this box to produce the corrected box. This
-         * is the layout box, as it will appear on screen as a result of the transforms of its parents.
-         */
-        applyTreeDeltas(this.boxCorrected, this.treeScale, this.treePath);
-        /**
-         * Update the delta between the corrected box and the target box before user-set transforms were applied.
-         * This will allow us to calculate the corrected borderRadius and boxShadow to compensate
-         * for our layout reprojection, but still allow them to be scaled correctly by the user.
-         * It might be that to simplify this we may want to accept that user-set scale is also corrected
-         * and we wouldn't have to keep and calc both deltas, OR we could support a user setting
-         * to allow people to choose whether these styles are corrected based on just the
-         * layout reprojection or the final bounding box.
-         */
-        updateBoxDelta(this.delta, this.boxCorrected, this.targetBox, this.layoutOrigin);
-        /**
-         * If we have a listener for the viewport box, fire it.
-         */
-        this.hasViewportBoxUpdated &&
-            this.viewportBoxUpdateListeners.notify(this.targetBox, this.delta);
-        this.hasViewportBoxUpdated = false;
-        /**
-         * Ensure this element renders on the next frame if the projection transform has changed.
-         */
-        var deltaTransform = buildLayoutProjectionTransform(this.delta, this.treeScale);
-        if (deltaTransform !== this.deltaTransform ||
-            // Also compare calculated treeScale, for values that rely on only this for scale correction.
-            prevTreeScaleX !== this.treeScale.x ||
-            prevTreeScaleY !== this.treeScale.y) {
-            this.scheduleRender();
-        }
-        this.deltaTransform = deltaTransform;
-    };
-    HTMLVisualElement.prototype.updateTransformDeltas = function () {
-        if (!this.isLayoutProjectionEnabled || !this.box)
-            return;
-        /**
-         * Apply the latest user-set transforms to the targetBox to produce the targetBoxFinal.
-         * This is the final box that we will then project into by calculating a transform delta and
-         * applying it to the corrected box.
-         */
-        applyBoxTransforms(this.targetBoxFinal, this.targetBox, this.latest);
-        /**
-         * Update the delta between the corrected box and the final target box, after
-         * user-set transforms are applied to it. This will be used by the renderer to
-         * create a transform style that will reproject the element from its actual layout
-         * into the desired bounding box.
-         */
-        updateBoxDelta(this.deltaFinal, this.boxCorrected, this.targetBoxFinal, this.layoutOrigin);
-    };
-    /**
-     * ========================================
-     * Build & render
-     * ========================================
-     */
-    /**
-     * Build a style prop using the latest resolved MotionValues
-     */
-    HTMLVisualElement.prototype.build = function () {
-        this.updateTransformDeltas();
-        if (this.isVisible !== undefined) {
-            this.style.visibility = this.isVisible ? "visible" : "hidden";
-        }
-        buildHTMLStyles(this.latest, this.style, this.vars, this.transform, this.transformOrigin, this.transformKeys, this.config, this.isLayoutProjectionEnabled && !!this.box, this.delta, this.deltaFinal, this.treeScale, this.targetBoxFinal);
-    };
-    /**
-     * Render the Element by rebuilding and applying the latest styles and vars.
-     */
-    HTMLVisualElement.prototype.render = function () {
-        // Rebuild the latest animated values into style and vars caches.
-        this.build();
+        buildHTMLStyles(renderState, latestValues, projection, layoutState, options, props.transformTemplate);
+    },
+    render: function (element, _a) {
+        var style = _a.style, vars = _a.vars;
         // Directly assign style into the Element's style prop. In tests Object.assign is the
         // fastest way to assign styles.
-        Object.assign(this.element.style, this.style);
+        Object.assign(element.style, style);
         // Loop over any CSS variables and assign those.
-        for (var key in this.vars) {
-            this.element.style.setProperty(key, this.vars[key]);
+        for (var key in vars) {
+            element.style.setProperty(key, vars[key]);
         }
-    };
-    return HTMLVisualElement;
-}(VisualElement));
-/**
- * Pre-bound version of updateLayoutDelta so we're not creating a new function multiple
- * times per frame.
- */
-var fireUpdateLayoutDelta = function (child) {
-    return child.updateLayoutDelta();
+    },
 };
-
-/**
- * Creates a constant value over the lifecycle of a component.
- *
- * Even if `useMemo` is provided an empty array as its final argument, it doesn't offer
- * a guarantee that it won't re-run for performance reasons later on. By using `useConstant`
- * you can ensure that initialisers don't execute twice or more.
- */
-function useConstant(init) {
-    var ref = (0,react__WEBPACK_IMPORTED_MODULE_2__.useRef)(null);
-    if (ref.current === null) {
-        ref.current = init();
-    }
-    return ref.current;
-}
+var htmlVisualElement = visualElement(htmlConfig);
 
 function calcOrigin$1(origin, offset, size) {
     return typeof origin === "string"
@@ -10373,18 +11546,17 @@ function buildSVGPath(attrs, totalLength, length, spacing, offset, useDashCase) 
     attrs[keys.array] = pathLength + " " + pathSpacing;
 }
 
-var unmeasured = { x: 0, y: 0, width: 0, height: 0 };
 /**
  * Build SVG visual attrbutes, like cx and style.transform
  */
-function buildSVGAttrs(_a, style, vars, attrs, transform, transformOrigin, transformKeys, config, dimensions, totalPathLength, isLayoutProjectionEnabled, delta, deltaFinal, treeScale, targetBox) {
+function buildSVGAttrs(state, _a, projection, layoutState, options, transformTemplate) {
     var attrX = _a.attrX, attrY = _a.attrY, originX = _a.originX, originY = _a.originY, pathLength = _a.pathLength, _b = _a.pathSpacing, pathSpacing = _b === void 0 ? 1 : _b, _c = _a.pathOffset, pathOffset = _c === void 0 ? 0 : _c, 
     // This is object creation, which we try to avoid per-frame.
     latest = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["attrX", "attrY", "originX", "originY", "pathLength", "pathSpacing", "pathOffset"]);
-    /**
-     * With SVG we treat all animated values as attributes rather than CSS, so we build into attrs
-     */
-    buildHTMLStyles(latest, attrs, vars, transform, transformOrigin, transformKeys, config, isLayoutProjectionEnabled, delta, deltaFinal, treeScale, targetBox);
+    buildHTMLStyles(state, latest, projection, layoutState, options, transformTemplate);
+    state.attrs = state.style;
+    state.style = {};
+    var attrs = state.attrs, style = state.style, dimensions = state.dimensions, totalPathLength = state.totalPathLength;
     /**
      * However, we apply transforms as CSS transforms. So if we detect a transform we take it from attrs
      * and copy it into style.
@@ -10395,7 +11567,7 @@ function buildSVGAttrs(_a, style, vars, attrs, transform, transformOrigin, trans
     }
     // Parse transformOrigin
     if (originX !== undefined || originY !== undefined || style.transform) {
-        style.transformOrigin = calcSVGTransformOrigin(dimensions || unmeasured, originX !== undefined ? originX : 0.5, originY !== undefined ? originY : 0.5);
+        style.transformOrigin = calcSVGTransformOrigin(dimensions, originX !== undefined ? originX : 0.5, originY !== undefined ? originY : 0.5);
     }
     // Treat x/y not as shortcuts but as actual attributes
     if (attrX !== undefined)
@@ -10406,8 +11578,16 @@ function buildSVGAttrs(_a, style, vars, attrs, transform, transformOrigin, trans
     if (totalPathLength !== undefined && pathLength !== undefined) {
         buildSVGPath(attrs, totalPathLength, pathLength, pathSpacing, pathOffset, false);
     }
-    return attrs;
 }
+
+var CAMEL_CASE_PATTERN = /([a-z])([A-Z])/g;
+var REPLACE_TEMPLATE = "$1-$2";
+/**
+ * Convert camelCase to dash-case properties.
+ */
+var camelToDash = function (str) {
+    return str.replace(CAMEL_CASE_PATTERN, REPLACE_TEMPLATE).toLowerCase();
+};
 
 /**
  * A set of attribute names that are always read/written as camel case.
@@ -10433,109 +11613,65 @@ var camelCaseAttributes = new Set([
     "viewBox",
 ]);
 
-var CAMEL_CASE_PATTERN = /([a-z])([A-Z])/g;
-var REPLACE_TEMPLATE = "$1-$2";
-/**
- * Convert camelCase to dash-case properties.
- */
-var camelToDash = function (str) {
-    return str.replace(CAMEL_CASE_PATTERN, REPLACE_TEMPLATE).toLowerCase();
+var zeroDimensions = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
 };
-
-/**
- * A VisualElement for SVGElements. Inherits from and extends HTMLVisualElement as the two
- * share data structures.
- */
-var SVGVisualElement = /** @class */ (function (_super) {
-    (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__extends)(SVGVisualElement, _super);
-    function SVGVisualElement() {
-        var _this = _super !== null && _super.apply(this, arguments) || this;
-        /**
-         * A mutable record of attributes we want to apply directly to the rendered Element
-         * every frame. We use a mutable data structure to reduce GC during animations.
-         */
-        _this.attrs = {};
-        /**
-         * We disable hardware acceleration for SVG transforms as they're not currently able to be accelerated.
-         */
-        _this.defaultConfig = {
-            enableHardwareAcceleration: false,
-        };
-        /**
-         * Without duplicating this call from HTMLVisualElement we end up with HTMLVisualElement.defaultConfig
-         * being assigned to config
-         */
-        _this.config = _this.defaultConfig;
-        return _this;
-    }
-    /**
-     * Measure the SVG element on mount. This can affect page rendering so there might be a
-     * better time to perform this - for instance dynamically only if there's a transform-origin dependent
-     * transform being set (like rotate)
-     */
-    SVGVisualElement.prototype.mount = function (element) {
-        _super.prototype.mount.call(this, element);
-        this.measure();
-    };
-    /**
-     * Update the SVG dimensions and path length
-     */
-    SVGVisualElement.prototype.measure = function () {
-        var _this = this;
+var svgMutableState = function () { return ((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, htmlConfig.createRenderState()), { attrs: {}, dimensions: zeroDimensions })); };
+var svgVisualElement = visualElement((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, htmlConfig), { createRenderState: svgMutableState, onMount: function (element, instance, mutableState) {
         try {
-            this.dimensions =
-                typeof this.element.getBBox ===
-                    "function"
-                    ? this.element.getBBox()
-                    : this.element.getBoundingClientRect();
+            mutableState.dimensions =
+                typeof instance.getBBox === "function"
+                    ? instance.getBBox()
+                    : instance.getBoundingClientRect();
         }
         catch (e) {
             // Most likely trying to measure an unrendered element under Firefox
-            this.dimensions = { x: 0, y: 0, width: 0, height: 0 };
+            mutableState.dimensions = zeroDimensions;
         }
-        if (isPath(this.element)) {
-            this.totalPathLength = this.element.getTotalLength();
+        if (isPath(instance)) {
+            mutableState.totalPathLength = instance.getTotalLength();
         }
         /**
          * Ensure we render the element as soon as possible to reflect the measured dimensions.
          * Preferably this would happen synchronously but we put it in rAF to prevent layout thrashing.
          */
-        framesync__WEBPACK_IMPORTED_MODULE_0__.default.render(function () { return _this.render(); });
-    };
-    SVGVisualElement.prototype.getBaseValue = function (key, props) {
-        var prop = props[key];
-        return prop !== undefined && !isMotionValue(prop)
-            ? prop
-            : _super.prototype.getBaseValue.call(this, key, props);
-    };
-    /**
-     * Empty the mutable data structures in case attrs have been removed between renders.
-     */
-    SVGVisualElement.prototype.clean = function () {
-        _super.prototype.clean.call(this);
-        this.attrs = {};
-    };
-    /**
-     * Read an attribute directly from the SVGElement
-     */
-    SVGVisualElement.prototype.read = function (key) {
-        key = !camelCaseAttributes.has(key) ? camelToDash(key) : key;
-        return this.element.getAttribute(key);
-    };
-    SVGVisualElement.prototype.build = function () {
-        this.updateTransformDeltas();
-        buildSVGAttrs(this.latest, this.style, this.vars, this.attrs, this.transform, this.transformOrigin, this.transformKeys, this.config, this.dimensions, this.totalPathLength, this.isLayoutProjectionEnabled && !!this.box, this.delta, this.deltaFinal, this.treeScale, this.targetBoxFinal);
-    };
-    SVGVisualElement.prototype.render = function () {
-        // Update HTML styles and CSS variables
-        _super.prototype.render.call(this);
-        // Loop through attributes and apply them to the SVGElement
-        for (var key in this.attrs) {
-            this.element.setAttribute(!camelCaseAttributes.has(key) ? camelToDash(key) : key, this.attrs[key]);
+        element.scheduleRender();
+    },
+    getBaseTarget: function (props, key) {
+        return props[key];
+    },
+    readValueFromInstance: function (domElement, key) {
+        var _a;
+        if (isTransformProp(key)) {
+            return ((_a = getDefaultValueType(key)) === null || _a === void 0 ? void 0 : _a.default) || 0;
         }
-    };
-    return SVGVisualElement;
-}(HTMLVisualElement));
+        key = !camelCaseAttributes.has(key) ? camelToDash(key) : key;
+        return domElement.getAttribute(key);
+    },
+    scrapeMotionValuesFromProps: function (props) {
+        var newValues = htmlConfig.scrapeMotionValuesFromProps(props);
+        for (var key in props) {
+            if (isMotionValue(props[key])) {
+                if (key === "x" || key === "y") {
+                    key = "attr" + key.toUpperCase();
+                }
+                newValues[key] = props[key];
+            }
+        }
+        return newValues;
+    },
+    build: function (_element, renderState, latestValues, projection, layoutState, options, props) {
+        buildSVGAttrs(renderState, latestValues, projection, layoutState, options, props.transformTemplate);
+    },
+    render: function (element, mutableState) {
+        htmlConfig.render(element, mutableState);
+        for (var key in mutableState.attrs) {
+            element.setAttribute(!camelCaseAttributes.has(key) ? camelToDash(key) : key, mutableState.attrs[key]);
+        }
+    } }));
 function isPath(element) {
     return element.tagName === "path";
 }
@@ -10544,46 +11680,19 @@ function isPath(element) {
  * @internal
  */
 /**
- * @internal
+ * We keep these listed seperately as we use the lowercase tag names as part
+ * of the runtime bundle to detect SVG components
  */
-var svgElements = [
+var lowercaseSVGElements = [
     "animate",
     "circle",
-    "clipPath",
     "defs",
     "desc",
     "ellipse",
-    "feBlend",
-    "feColorMatrix",
-    "feComponentTransfer",
-    "feComposite",
-    "feConvolveMatrix",
-    "feDiffuseLighting",
-    "feDisplacementMap",
-    "feDistantLight",
-    "feDropShadow",
-    "feFlood",
-    "feFuncA",
-    "feFuncB",
-    "feFuncG",
-    "feFuncR",
-    "feGaussianBlur",
-    "feImage",
-    "feMerge",
-    "feMergeNode",
-    "feMorphology",
-    "feOffset",
-    "fePointLight",
-    "feSpecularLighting",
-    "feSpotLight",
-    "feTile",
-    "feTurbulence",
-    "filter",
-    "foreignObject",
     "g",
     "image",
     "line",
-    "linearGradient",
+    "filter",
     "marker",
     "mask",
     "metadata",
@@ -10591,115 +11700,109 @@ var svgElements = [
     "pattern",
     "polygon",
     "polyline",
-    "radialGradient",
     "rect",
     "stop",
     "svg",
     "switch",
     "symbol",
     "text",
-    "textPath",
     "tspan",
     "use",
     "view",
 ];
 
-var svgTagNames = new Set(svgElements);
-/**
- * Determine whether this is a HTML or SVG component based on if the provided
- * Component is a string and a recognised SVG tag. A potentially better way to
- * do this would be to offer a `motion.customSVG` function and determine this
- * when we generate the `motion.circle` etc components.
- */
 function isSVGComponent(Component) {
-    return typeof Component === "string" && svgTagNames.has(Component);
+    /**
+     * If it's not a string, it's a custom React component. Currently we only support
+     * HTML custom React components.
+     */
+    if (typeof Component !== "string")
+        return false;
+    /**
+     * If it contains a dash, the element is a custom HTML webcomponent.
+     */
+    if (Component.includes("-"))
+        return false;
+    /**
+     * If it's in our list of lowercase SVG tags, it's an SVG component
+     */
+    if (lowercaseSVGElements.indexOf(Component) > -1)
+        return true;
+    /**
+     * If it contains a capital letter, it's an SVG component
+     */
+    if (/[A-Z]/.test(Component))
+        return true;
 }
 
-/**
- * @public
- */
-var PresenceContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(null);
-
-var MotionContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)({
-    variantContext: {},
-});
-/**
- * @internal
- */
-function useVariantContext() {
-    return (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(MotionContext).variantContext;
-}
-function useVisualElementContext() {
-    return (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(MotionContext).visualElement;
-}
-
-/**
- * @internal
- */
-var LayoutGroupContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(null);
-
-/**
- * DOM-flavoured variation of the useVisualElement hook. Used to create either a HTMLVisualElement
- * or SVGVisualElement for the component.
- *
- */
-var useDomVisualElement = function (Component, props, isStatic, ref) {
-    var parent = useVisualElementContext();
-    var visualElement = useConstant(function () {
-        var DOMVisualElement = isSVGComponent(Component)
-            ? SVGVisualElement
-            : HTMLVisualElement;
-        return new DOMVisualElement(parent, ref);
+function createDomVisualElement(Component, isStatic, options) {
+    var isSVG = isSVGComponent(Component);
+    var factory = isSVG ? svgVisualElement : htmlVisualElement;
+    return factory(options, {
+        enableHardwareAcceleration: !isStatic && !isSVG,
     });
-    /**
-     * If this is a static component, for instance on the Framer canvas, we essentially want to
-     * treat it as a new component every render.
-     * TODO: This shouldn't live in a DOM-specific hook but there'll be a better sense of where this
-     * and much of this hook should live when creating a new type of VisualElement (e.g Three.js).
-     */
-    if (isStatic) {
-        visualElement.values.clear();
-        visualElement.latest = {};
+}
+
+/**
+ * Creates a constant value over the lifecycle of a component.
+ *
+ * Even if `useMemo` is provided an empty array as its final argument, it doesn't offer
+ * a guarantee that it won't re-run for performance reasons later on. By using `useConstant`
+ * you can ensure that initialisers don't execute twice or more.
+ */
+function useConstant(init) {
+    var ref = (0,react__WEBPACK_IMPORTED_MODULE_2__.useRef)(null);
+    if (ref.current === null) {
+        ref.current = init();
     }
-    visualElement.updateConfig((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, visualElement.config), { enableHardwareAcceleration: !isStatic }), props));
-    var layoutGroupId = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(LayoutGroupContext);
-    visualElement.layoutId =
-        layoutGroupId && props.layoutId
-            ? layoutGroupId + "-" + props.layoutId
-            : props.layoutId;
-    var presenceContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(PresenceContext);
+    return ref.current;
+}
+
+function useInitialMotionValues(visualElement) {
+    var createStyle = function () {
+        var _a = visualElement.build(), vars = _a.vars, style = _a.style;
+        return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, vars), style);
+    };
+    return visualElement.isStatic ? createStyle() : useConstant(createStyle);
+}
+function useStyle(visualElement, props) {
+    var styleProp = props.style || {};
+    var style = {};
     /**
-     * Update VisualElement with presence data.
+     * Copy non-Motion Values straight into style
      */
-    var isPresent = presenceContext === null ? true : presenceContext.isPresent;
-    visualElement.isPresent =
-        props.isPresent !== undefined ? props.isPresent : isPresent;
-    /**
-     *
-     */
-    var presenceId = presenceContext === null || presenceContext === void 0 ? void 0 : presenceContext.id;
-    visualElement.isPresenceRoot = !parent || parent.presenceId !== presenceId;
-    /**
-     * TODO: Investigate if we need this
-     */
-    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
-        var cancelViewportBoxUpdate;
-        var cancelLayoutMeasureUpdate;
-        if (props.onViewportBoxUpdate) {
-            cancelViewportBoxUpdate = visualElement.onViewportBoxUpdate(props.onViewportBoxUpdate);
+    for (var key in styleProp) {
+        // TODO We might want this to be a hasValue check? Although this could be impure
+        if (!isMotionValue(styleProp[key]) &&
+            !isForcedMotionValue(key, props)) {
+            style[key] = styleProp[key];
         }
-        if (props._onLayoutMeasure) {
-            cancelLayoutMeasureUpdate = visualElement.onLayoutMeasure(props._onLayoutMeasure);
-        }
-        if (cancelViewportBoxUpdate || cancelLayoutMeasureUpdate) {
-            return function () {
-                cancelViewportBoxUpdate === null || cancelViewportBoxUpdate === void 0 ? void 0 : cancelViewportBoxUpdate();
-                cancelLayoutMeasureUpdate === null || cancelLayoutMeasureUpdate === void 0 ? void 0 : cancelLayoutMeasureUpdate();
-            };
-        }
-    }, [props.onViewportBoxUpdate, props._onLayoutMeasure]);
-    return visualElement;
-};
+    }
+    style = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, style), useInitialMotionValues(visualElement));
+    if (props.transformValues) {
+        style = props.transformValues(style);
+    }
+    return style;
+}
+function useHTMLProps(visualElement, props) {
+    // The `any` isn't ideal but it is the type of createElement props argument
+    var htmlProps = {};
+    var style = useStyle(visualElement, props);
+    if (Boolean(props.drag)) {
+        // Disable the ghost element when a user drags
+        htmlProps.draggable = false;
+        // Disable text selection
+        style.userSelect = style.WebkitUserSelect = style.WebkitTouchCallout =
+            "none";
+        // Disable scrolling on the draggable direction
+        style.touchAction =
+            props.drag === true
+                ? "none"
+                : "pan-" + (props.drag === "x" ? "y" : "x");
+    }
+    htmlProps.style = style;
+    return htmlProps;
+}
 
 /**
  * @public
@@ -10732,13 +11835,14 @@ var MotionConfigContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)({
  * @public
  */
 function MotionConfig(_a) {
-    var children = _a.children, _b = _a.features, features = _b === void 0 ? [] : _b, props = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["children", "features"]);
+    var children = _a.children, _b = _a.features, features = _b === void 0 ? [] : _b, transition = _a.transition, props = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["children", "features", "transition"]);
     var pluginContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(MotionConfigContext);
-    var loadedFeatures = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(pluginContext.features, features);
+    var loadedFeatures = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(new Set((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(pluginContext.features, features)));
     // We do want to rerender children when the number of loaded features changes
-    var value = (0,react__WEBPACK_IMPORTED_MODULE_2__.useMemo)(function () { return ({ features: loadedFeatures }); }, [
-        loadedFeatures.length,
-    ]);
+    var value = (0,react__WEBPACK_IMPORTED_MODULE_2__.useMemo)(function () { return ({
+        features: loadedFeatures,
+        transition: transition || pluginContext.transition,
+    }); }, [loadedFeatures.length, transition]);
     // Mutative to prevent triggering rerenders in all listening
     // components every time this component renders
     for (var key in props) {
@@ -10895,14 +11999,6 @@ function addPointerEvent(target, eventName, handler, options) {
 function usePointerEvent(ref, eventName, handler, options) {
     return useDomEvent(ref, getPointerEventName(eventName), handler && wrapHandler(handler, eventName === "pointerdown"), options);
 }
-
-/**
- * Converts seconds to milliseconds
- *
- * @param seconds - Time in seconds.
- * @return milliseconds - Converted time in milliseconds.
- */
-var secondsToMilliseconds = function (seconds) { return seconds * 1000; };
 
 /**
  * @internal
@@ -11106,878 +12202,6 @@ var isNodeOrChild = function (parent, child) {
     }
 };
 
-var easingLookup = {
-    linear: popmotion__WEBPACK_IMPORTED_MODULE_4__.linear,
-    easeIn: popmotion__WEBPACK_IMPORTED_MODULE_4__.easeIn,
-    easeInOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.easeInOut,
-    easeOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.easeOut,
-    circIn: popmotion__WEBPACK_IMPORTED_MODULE_4__.circIn,
-    circInOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.circInOut,
-    circOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.circOut,
-    backIn: popmotion__WEBPACK_IMPORTED_MODULE_4__.backIn,
-    backInOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.backInOut,
-    backOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.backOut,
-    anticipate: popmotion__WEBPACK_IMPORTED_MODULE_4__.anticipate,
-    bounceIn: popmotion__WEBPACK_IMPORTED_MODULE_4__.bounceIn,
-    bounceInOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.bounceInOut,
-    bounceOut: popmotion__WEBPACK_IMPORTED_MODULE_4__.bounceOut,
-};
-var easingDefinitionToFunction = function (definition) {
-    if (Array.isArray(definition)) {
-        // If cubic bezier definition, create bezier curve
-        (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(definition.length === 4, "Cubic bezier arrays must contain four numerical values.");
-        var _a = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(definition, 4), x1 = _a[0], y1 = _a[1], x2 = _a[2], y2 = _a[3];
-        return (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.cubicBezier)(x1, y1, x2, y2);
-    }
-    else if (typeof definition === "string") {
-        // Else lookup from table
-        (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(easingLookup[definition] !== undefined, "Invalid easing type '" + definition + "'");
-        return easingLookup[definition];
-    }
-    return definition;
-};
-var isEasingArray = function (ease) {
-    return Array.isArray(ease) && typeof ease[0] !== "number";
-};
-
-/**
- * Check if a value is animatable. Examples:
- *
- * ✅: 100, "100px", "#fff"
- * ❌: "block", "url(2.jpg)"
- * @param value
- *
- * @internal
- */
-var isAnimatable = function (key, value) {
-    // If the list of keys tat might be non-animatable grows, replace with Set
-    if (key === "zIndex")
-        return false;
-    // If it's a number or a keyframes array, we can animate it. We might at some point
-    // need to do a deep isAnimatable check of keyframes, or let Popmotion handle this,
-    // but for now lets leave it like this for performance reasons
-    if (typeof value === "number" || Array.isArray(value))
-        return true;
-    if (typeof value === "string" && // It's animatable if we have a string
-        style_value_types__WEBPACK_IMPORTED_MODULE_5__.complex.test(value) && // And it contains numbers and/or colors
-        !value.startsWith("url(") // Unless it starts with "url("
-    ) {
-        return true;
-    }
-    return false;
-};
-
-var underDampedSpring = function () { return ({
-    type: "spring",
-    stiffness: 500,
-    damping: 25,
-    restDelta: 0.5,
-    restSpeed: 10,
-}); };
-var overDampedSpring = function (to) { return ({
-    type: "spring",
-    stiffness: 550,
-    damping: to === 0 ? 100 : 30,
-    restDelta: 0.01,
-    restSpeed: 10,
-}); };
-var linearTween = function () { return ({
-    type: "keyframes",
-    ease: "linear",
-    duration: 0.3,
-}); };
-var keyframes = function (values) { return ({
-    type: "keyframes",
-    duration: 0.8,
-    values: values,
-}); };
-var defaultTransitions = {
-    x: underDampedSpring,
-    y: underDampedSpring,
-    z: underDampedSpring,
-    rotate: underDampedSpring,
-    rotateX: underDampedSpring,
-    rotateY: underDampedSpring,
-    rotateZ: underDampedSpring,
-    scaleX: overDampedSpring,
-    scaleY: overDampedSpring,
-    scale: overDampedSpring,
-    opacity: linearTween,
-    backgroundColor: linearTween,
-    color: linearTween,
-    default: overDampedSpring,
-};
-var getDefaultTransition = function (valueKey, to) {
-    var transitionFactory;
-    if (isKeyframesTarget(to)) {
-        transitionFactory = keyframes;
-    }
-    else {
-        transitionFactory =
-            defaultTransitions[valueKey] || defaultTransitions.default;
-    }
-    return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ to: to }, transitionFactory(to));
-};
-
-/**
- * Decide whether a transition is defined on a given Transition.
- * This filters out orchestration options and returns true
- * if any options are left.
- */
-function isTransitionDefined(_a) {
-    var when = _a.when, delay = _a.delay, delayChildren = _a.delayChildren, staggerChildren = _a.staggerChildren, staggerDirection = _a.staggerDirection, repeat = _a.repeat, repeatType = _a.repeatType, repeatDelay = _a.repeatDelay, from = _a.from, transition = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["when", "delay", "delayChildren", "staggerChildren", "staggerDirection", "repeat", "repeatType", "repeatDelay", "from"]);
-    return !!Object.keys(transition).length;
-}
-var legacyRepeatWarning = false;
-/**
- * Convert Framer Motion's Transition type into Popmotion-compatible options.
- */
-function convertTransitionToAnimationOptions(_a) {
-    var ease = _a.ease, times = _a.times, yoyo = _a.yoyo, flip = _a.flip, loop = _a.loop, transition = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["ease", "times", "yoyo", "flip", "loop"]);
-    var options = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, transition);
-    if (times)
-        options["offset"] = times;
-    /**
-     * Convert any existing durations from seconds to milliseconds
-     */
-    if (transition.duration)
-        options["duration"] = secondsToMilliseconds(transition.duration);
-    if (transition.repeatDelay)
-        options.repeatDelay = secondsToMilliseconds(transition.repeatDelay);
-    /**
-     * Map easing names to Popmotion's easing functions
-     */
-    if (ease) {
-        options["ease"] = isEasingArray(ease)
-            ? ease.map(easingDefinitionToFunction)
-            : easingDefinitionToFunction(ease);
-    }
-    /**
-     * Support legacy transition API
-     */
-    if (transition.type === "tween")
-        options.type = "keyframes";
-    /**
-     * TODO: These options are officially removed from the API.
-     */
-    if (yoyo || loop || flip) {
-        (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.warning)(!legacyRepeatWarning, "yoyo, loop and flip have been removed from the API. Replace with repeat and repeatType options.");
-        legacyRepeatWarning = true;
-        if (yoyo) {
-            options.repeatType = "reverse";
-        }
-        else if (loop) {
-            options.repeatType = "loop";
-        }
-        else if (flip) {
-            options.repeatType = "mirror";
-        }
-        options.repeat = loop || yoyo || flip || transition.repeat;
-    }
-    /**
-     * TODO: Popmotion 9 has the ability to automatically detect whether to use
-     * a keyframes or spring animation, but does so by detecting velocity and other spring options.
-     * It'd be good to introduce a similar thing here.
-     */
-    if (transition.type !== "spring")
-        options.type = "keyframes";
-    return options;
-}
-/**
- * Get the delay for a value by checking Transition with decreasing specificity.
- */
-function getDelayFromTransition(transition, key) {
-    var _a, _b, _c, _d, _e;
-    return ((_e = (_d = (_b = (_a = transition[key]) === null || _a === void 0 ? void 0 : _a.delay) !== null && _b !== void 0 ? _b : (_c = transition["default"]) === null || _c === void 0 ? void 0 : _c.delay) !== null && _d !== void 0 ? _d : transition.delay) !== null && _e !== void 0 ? _e : 0);
-}
-function hydrateKeyframes(options) {
-    if (Array.isArray(options.to) && options.to[0] === null) {
-        options.to = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(options.to);
-        options.to[0] = options.from;
-    }
-    return options;
-}
-function getPopmotionAnimationOptions(transition, options, key) {
-    var _a;
-    if (Array.isArray(options.to)) {
-        (_a = transition.duration) !== null && _a !== void 0 ? _a : (transition.duration = 0.8);
-    }
-    hydrateKeyframes(options);
-    /**
-     * Get a default transition if none is determined to be defined.
-     */
-    if (!isTransitionDefined(transition)) {
-        transition = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, transition), getDefaultTransition(key, options.to));
-    }
-    return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, options), convertTransitionToAnimationOptions(transition));
-}
-/**
- *
- */
-function getAnimation(key, value, target, transition, onComplete) {
-    var _a;
-    var valueTransition = getValueTransition(transition, key);
-    var origin = (_a = valueTransition.from) !== null && _a !== void 0 ? _a : value.get();
-    var isTargetAnimatable = isAnimatable(key, target);
-    /**
-     * If we're trying to animate from "none", try and get an animatable version
-     * of the target. This could be improved to work both ways.
-     */
-    if (origin === "none" && isTargetAnimatable && typeof target === "string") {
-        origin = getAnimatableNone(key, target);
-    }
-    var isOriginAnimatable = isAnimatable(key, origin);
-    (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.warning)(isOriginAnimatable === isTargetAnimatable, "You are trying to animate " + key + " from \"" + origin + "\" to \"" + target + "\". " + origin + " is not an animatable value - to enable this animation set " + origin + " to a value animatable to " + target + " via the `style` property.");
-    function start() {
-        var options = {
-            from: origin,
-            to: target,
-            velocity: value.getVelocity(),
-            onComplete: onComplete,
-            onUpdate: function (v) { return value.set(v); },
-        };
-        return valueTransition.type === "inertia" ||
-            valueTransition.type === "decay"
-            ? (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.inertia)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, options), valueTransition))
-            : (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.animate)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, getPopmotionAnimationOptions(valueTransition, options, key)), { onUpdate: function (v) {
-                    var _a;
-                    options.onUpdate(v);
-                    (_a = valueTransition.onUpdate) === null || _a === void 0 ? void 0 : _a.call(valueTransition, v);
-                }, onComplete: function () {
-                    var _a;
-                    options.onComplete();
-                    (_a = valueTransition.onComplete) === null || _a === void 0 ? void 0 : _a.call(valueTransition);
-                } }));
-    }
-    function set() {
-        var _a;
-        value.set(target);
-        onComplete();
-        (_a = valueTransition === null || valueTransition === void 0 ? void 0 : valueTransition.onComplete) === null || _a === void 0 ? void 0 : _a.call(valueTransition);
-        return { stop: function () { } };
-    }
-    return !isOriginAnimatable ||
-        !isTargetAnimatable ||
-        valueTransition.type === false
-        ? set
-        : start;
-}
-function getValueTransition(transition, key) {
-    return transition[key] || transition["default"] || transition;
-}
-/**
- * Start animation on a MotionValue. This function is an interface between
- * Framer Motion and Popmotion
- *
- * @internal
- */
-function startAnimation(key, value, target, transition) {
-    if (transition === void 0) { transition = {}; }
-    return value.start(function (onComplete) {
-        var delayTimer;
-        var controls;
-        var animation = getAnimation(key, value, target, transition, onComplete);
-        var delay = getDelayFromTransition(transition, key);
-        var start = function () { return (controls = animation()); };
-        if (delay) {
-            delayTimer = setTimeout(start, secondsToMilliseconds(delay));
-        }
-        else {
-            start();
-        }
-        return function () {
-            clearTimeout(delayTimer);
-            controls === null || controls === void 0 ? void 0 : controls.stop();
-        };
-    });
-}
-
-/**
- * @internal
- */
-function animateVisualElement(visualElement, definition, options) {
-    visualElement.onAnimationStart();
-    var animation;
-    if (Array.isArray(definition)) {
-        var animations = definition.map(function (variant) {
-            return animateVariant(visualElement, variant, options);
-        });
-        animation = Promise.all(animations);
-    }
-    else if (typeof definition === "string") {
-        animation = animateVariant(visualElement, definition, options);
-    }
-    else {
-        // TODO: Remove any and handle TargetResolver
-        animation = animateTarget(visualElement, definition, options);
-    }
-    return animation.then(function () { return visualElement.onAnimationComplete(); });
-}
-function animateVariant(visualElement, variant, options) {
-    var _a;
-    if (options === void 0) { options = {}; }
-    var resolved = resolveVariant(visualElement, variant, options.custom);
-    var _b = (resolved || {}).transition, transition = _b === void 0 ? visualElement.getDefaultTransition() || {} : _b;
-    if (options.transitionOverride) {
-        transition = options.transitionOverride;
-    }
-    /**
-     * If we have a variant, create a callback that runs it as an animation.
-     * Otherwise, we resolve a Promise immediately for a composable no-op.
-     */
-    var getAnimation = resolved
-        ? function () { return animateTarget(visualElement, resolved, options); }
-        : function () { return Promise.resolve(); };
-    /**
-     * If we have children, create a callback that runs all their animations.
-     * Otherwise, we resolve a Promise immediately for a composable no-op.
-     */
-    var getChildAnimations = ((_a = visualElement.variantChildrenOrder) === null || _a === void 0 ? void 0 : _a.size) ? function (forwardDelay) {
-        if (forwardDelay === void 0) { forwardDelay = 0; }
-        var _a = transition.delayChildren, delayChildren = _a === void 0 ? 0 : _a, staggerChildren = transition.staggerChildren, staggerDirection = transition.staggerDirection;
-        return animateChildren(visualElement, variant, delayChildren + forwardDelay, staggerChildren, staggerDirection, options);
-    }
-        : function () { return Promise.resolve(); };
-    /**
-     * If the transition explicitly defines a "when" option, we need to resolve either
-     * this animation or all children animations before playing the other.
-     */
-    var when = transition.when;
-    if (when) {
-        var _c = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(when === "beforeChildren"
-            ? [getAnimation, getChildAnimations]
-            : [getChildAnimations, getAnimation], 2), first = _c[0], last = _c[1];
-        return first().then(last);
-    }
-    else {
-        return Promise.all([getAnimation(), getChildAnimations(options.delay)]);
-    }
-}
-/**
- * @internal
- */
-function animateTarget(visualElement, definition, _a) {
-    var _b;
-    var _c = _a === void 0 ? {} : _a, _d = _c.delay, delay = _d === void 0 ? 0 : _d, transitionOverride = _c.transitionOverride, type = _c.type;
-    var _e = visualElement.makeTargetAnimatable(definition), _f = _e.transition, transition = _f === void 0 ? visualElement.getDefaultTransition() : _f, transitionEnd = _e.transitionEnd, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_e, ["transition", "transitionEnd"]);
-    if (transitionOverride)
-        transition = transitionOverride;
-    var animations = [];
-    var protectedValues = type && ((_b = visualElement.animationState) === null || _b === void 0 ? void 0 : _b.getProtectedKeys(type));
-    for (var key in target) {
-        var value = visualElement.getValue(key);
-        var valueTarget = target[key];
-        if (!value ||
-            valueTarget === undefined ||
-            (protectedValues === null || protectedValues === void 0 ? void 0 : protectedValues[key]) !== undefined) {
-            continue;
-        }
-        var animation = startAnimation(key, value, valueTarget, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ delay: delay }, transition));
-        animations.push(animation);
-    }
-    return Promise.all(animations).then(function () {
-        transitionEnd && setTarget(visualElement, transitionEnd);
-    });
-}
-function animateChildren(visualElement, variant, delayChildren, staggerChildren, staggerDirection, options) {
-    if (delayChildren === void 0) { delayChildren = 0; }
-    if (staggerChildren === void 0) { staggerChildren = 0; }
-    if (staggerDirection === void 0) { staggerDirection = 1; }
-    var animations = [];
-    var maxStaggerDuration = (visualElement.variantChildrenOrder.size - 1) * staggerChildren;
-    var generateStaggerDuration = staggerDirection === 1
-        ? function (i) {
-            if (i === void 0) { i = 0; }
-            return i * staggerChildren;
-        }
-        : function (i) {
-            if (i === void 0) { i = 0; }
-            return maxStaggerDuration - i * staggerChildren;
-        };
-    Array.from(visualElement.variantChildrenOrder).forEach(function (child, i) {
-        var animation = animateVariant(child, variant, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, options), { delay: delayChildren + generateStaggerDuration(i) }));
-        animations.push(animation);
-    });
-    return Promise.all(animations);
-}
-function stopAnimation(visualElement) {
-    visualElement.forEachValue(function (value) { return value.stop(); });
-}
-
-/**
- * Control animations on one or more components.
- *
- * @public
- */
-var AnimationControls = /** @class */ (function () {
-    function AnimationControls() {
-        /**
-         * Track whether the host component has mounted.
-         *
-         * @internal
-         */
-        this.hasMounted = false;
-        /**
-         * Pending animations that are started before a component is mounted.
-         *
-         * @internal
-         */
-        this.pendingAnimations = [];
-        /**
-         * A collection of linked component animation controls.
-         *
-         * @internal
-         */
-        this.subscribers = new Set();
-    }
-    /**
-     * Subscribes a component's animation controls to this.
-     *
-     * @param controls - The controls to subscribe
-     * @returns An unsubscribe function.
-     *
-     * @internal
-     */
-    AnimationControls.prototype.subscribe = function (visualElement) {
-        var _this = this;
-        this.subscribers.add(visualElement);
-        return function () { return _this.subscribers.delete(visualElement); };
-    };
-    /**
-     * Starts an animation on all linked components.
-     *
-     * @remarks
-     *
-     * ```jsx
-     * controls.start("variantLabel")
-     * controls.start({
-     *   x: 0,
-     *   transition: { duration: 1 }
-     * })
-     * ```
-     *
-     * @param definition - Properties or variant label to animate to
-     * @param transition - Optional `transtion` to apply to a variant
-     * @returns - A `Promise` that resolves when all animations have completed.
-     *
-     * @public
-     */
-    AnimationControls.prototype.start = function (definition, transitionOverride) {
-        var _this = this;
-        if (this.hasMounted) {
-            var animations_1 = [];
-            this.subscribers.forEach(function (visualElement) {
-                animations_1.push(animateVisualElement(visualElement, definition, {
-                    transitionOverride: transitionOverride,
-                }));
-            });
-            return Promise.all(animations_1);
-        }
-        else {
-            return new Promise(function (resolve) {
-                _this.pendingAnimations.push({
-                    animation: [definition, transitionOverride],
-                    resolve: resolve,
-                });
-            });
-        }
-    };
-    /**
-     * Instantly set to a set of properties or a variant.
-     *
-     * ```jsx
-     * // With properties
-     * controls.set({ opacity: 0 })
-     *
-     * // With variants
-     * controls.set("hidden")
-     * ```
-     *
-     * @internalremarks
-     * We could perform a similar trick to `.start` where this can be called before mount
-     * and we maintain a list of of pending actions that get applied on mount. But the
-     * expectation of `set` is that it happens synchronously and this would be difficult
-     * to do before any children have even attached themselves. It's also poor practise
-     * and we should discourage render-synchronous `.start` calls rather than lean into this.
-     *
-     * @public
-     */
-    AnimationControls.prototype.set = function (definition) {
-        (0,hey_listen__WEBPACK_IMPORTED_MODULE_1__.invariant)(this.hasMounted, "controls.set() should only be called after a component has mounted. Consider calling within a useEffect hook.");
-        return this.subscribers.forEach(function (visualElement) {
-            setValues(visualElement, definition);
-        });
-    };
-    /**
-     * Stops animations on all linked components.
-     *
-     * ```jsx
-     * controls.stop()
-     * ```
-     *
-     * @public
-     */
-    AnimationControls.prototype.stop = function () {
-        this.subscribers.forEach(function (visualElement) {
-            stopAnimation(visualElement);
-        });
-    };
-    /**
-     * Initialises the animation controls.
-     *
-     * @internal
-     */
-    AnimationControls.prototype.mount = function () {
-        var _this = this;
-        this.hasMounted = true;
-        this.pendingAnimations.forEach(function (_a) {
-            var animation = _a.animation, resolve = _a.resolve;
-            _this.start.apply(_this, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(animation)).then(resolve);
-        });
-    };
-    /**
-     * Stops all child animations when the host component unmounts.
-     *
-     * @internal
-     */
-    AnimationControls.prototype.unmount = function () {
-        this.hasMounted = false;
-        this.stop();
-    };
-    return AnimationControls;
-}());
-/**
- * @internal
- */
-var animationControls = function () { return new AnimationControls(); };
-
-function shallowCompare(next, prev) {
-    if (!Array.isArray(prev))
-        return false;
-    var prevLength = prev.length;
-    if (prevLength !== next.length)
-        return false;
-    for (var i = 0; i < prevLength; i++) {
-        if (prev[i] !== next[i])
-            return false;
-    }
-    return true;
-}
-
-var AnimationType;
-(function (AnimationType) {
-    AnimationType["Animate"] = "animate";
-    AnimationType["Hover"] = "whileHover";
-    AnimationType["Tap"] = "whileTap";
-    AnimationType["Drag"] = "whileDrag";
-    AnimationType["Focus"] = "whileFocus";
-    AnimationType["Exit"] = "exit";
-})(AnimationType || (AnimationType = {}));
-var variantPriorityOrder = [
-    AnimationType.Animate,
-    AnimationType.Hover,
-    AnimationType.Tap,
-    AnimationType.Drag,
-    AnimationType.Focus,
-    AnimationType.Exit,
-];
-var reversePriorityOrder = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(variantPriorityOrder).reverse();
-var numAnimationTypes = variantPriorityOrder.length;
-function animateList(visualElement) {
-    return function (animations) {
-        return Promise.all(animations.map(function (_a) {
-            var animation = _a.animation, options = _a.options;
-            return animateVisualElement(visualElement, animation, options);
-        }));
-    };
-}
-function createAnimationState(visualElement) {
-    var animate = animateList(visualElement);
-    var state = createState();
-    var isInitialRender = true;
-    /**
-     * This function will be used to reduce the animation definitions for
-     * each active animation type into an object of resolved values for it.
-     */
-    var buildResolvedTypeValues = function (acc, definition) {
-        var resolved = resolveVariant(visualElement, definition);
-        if (resolved) {
-            var transition = resolved.transition, transitionEnd = resolved.transitionEnd, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(resolved, ["transition", "transitionEnd"]);
-            acc = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, acc), target), transitionEnd);
-        }
-        return acc;
-    };
-    function getProtectedKeys(type) {
-        return state[type].protectedKeys;
-    }
-    /**
-     * This just allows us to inject mocked animation functions
-     * @internal
-     */
-    function setAnimateFunction(makeAnimator) {
-        animate = makeAnimator(visualElement);
-    }
-    var currentProps;
-    var currentContext;
-    /**
-     * When we receive new props, we need to:
-     * 1. Create a list of protected keys for each type. This is a directory of
-     *    value keys that are currently being "handled" by types of a higher priority
-     *    so that whenever an animation is played of a given type, these values are
-     *    protected from being animated.
-     * 2. Determine if an animation type needs animating.
-     * 3. Determine if any values have been removed from a type and figure out
-     *    what to animate those to.
-     */
-    function setProps(props, context, options, changedActiveType) {
-        if (context === void 0) { context = {}; }
-        /**
-         * Keep track of the most recent props and contexts. setActive can pass these
-         * straight through rather than requiring external callers to have access to these.
-         */
-        currentProps = props;
-        currentContext = context;
-        /**
-         * A list of animations that we'll build into as we iterate through the animation
-         * types. This will get executed at the end of the function.
-         */
-        var animations = [];
-        /**
-         * Keep track of which values have been removed. Then, as we hit lower priority
-         * animation types, we can check if they contain removed values and animate to that.
-         */
-        var removedKeys = new Set();
-        /**
-         * A dictionary of all encountered keys. This is an object to let us build into and
-         * copy it without iteration. Each time we hit an animation type we set its protected
-         * keys - the keys its not allowed to animate - to the latest version of this object.
-         */
-        var encounteredKeys = {};
-        // TODO Reconcile with other update config
-        if (props.variants) {
-            visualElement.updateConfig((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, visualElement.config), { variants: props.variants }));
-        }
-        /**
-         * If a variant has been removed at a given index, and this component is controlling
-         * variant animations, we want to ensure lower-priority variants are forced to animate.
-         */
-        var removedVariantIndex = Infinity;
-        var _loop_1 = function (i) {
-            var type = reversePriorityOrder[i];
-            var typeState = state[type];
-            var prop = (_a = props[type]) !== null && _a !== void 0 ? _a : context[type];
-            var propIsVariant = isVariantLabel(prop);
-            /**
-             * If this type has *just* changed isActive status, set activeDelta
-             * to that status. Otherwise set to null.
-             */
-            var activeDelta = type === changedActiveType ? typeState.isActive : null;
-            if (activeDelta === false)
-                removedVariantIndex = i;
-            /**
-             * If this prop is an inherited variant, rather than been set directly on the
-             * component itself, we want to make sure we allow the parent to trigger animations.
-             */
-            var isInherited = prop === context[type] && propIsVariant;
-            /**
-             *
-             */
-            if (isInherited &&
-                isInitialRender &&
-                visualElement.manuallyAnimateOnMount) {
-                isInherited = false;
-            }
-            /**
-             * Resume from previous snapshot if it's the first render
-             */
-            if (isInitialRender &&
-                type === AnimationType.Animate &&
-                visualElement.prevSnapshot) {
-                isInitialRender = false;
-                typeState.prevResolvedValues = visualElement.prevSnapshot;
-            }
-            /**
-             * Set all encountered keys so far as the protected keys for this type. This will
-             * be any key that has been animated or otherwise handled by active, higher-priortiy types.
-             */
-            typeState.protectedKeys = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, encounteredKeys);
-            // Check if we can skip analysing this prop early
-            if (
-            // If it isn't active and hasn't *just* been set as inactive
-            (!typeState.isActive && activeDelta === null) ||
-                // If we didn't and don't have any defined prop for this animation type
-                (!prop && !typeState.prevProp) ||
-                // Or if the prop doesn't define an animation
-                prop instanceof AnimationControls ||
-                typeof prop === "boolean") {
-                return "continue";
-            }
-            /**
-             * As we go look through the values defined on this type, if we detect
-             * a changed value or a value that was removed in a higher priority, we set
-             * this to true and add this prop to the animation list.
-             */
-            var shouldAnimateType = variantsHaveChanged(typeState.prevProp, prop) ||
-                // If we're making this variant active, we want to always make it active
-                (type === changedActiveType &&
-                    typeState.isActive &&
-                    !isInherited &&
-                    propIsVariant) ||
-                // If we removed a higher-priority variant (i is in reverse order)
-                (i > removedVariantIndex && propIsVariant);
-            /**
-             * As animations can be set as variant lists, variants or target objects, we
-             * coerce everything to an array if it isn't one already
-             */
-            var definitionList = Array.isArray(prop) ? prop : [prop];
-            /**
-             * Build an object of all the resolved values. We'll use this in the subsequent
-             * setProps calls to determine whether a value has changed.
-             */
-            var resolvedValues = definitionList.reduce(buildResolvedTypeValues, {});
-            if (activeDelta === false)
-                resolvedValues = {};
-            /**
-             * Now we need to loop through all the keys in the prev prop and this prop,
-             * and decide:
-             * 1. If the value has changed, and needs animating
-             * 2. If it has been removed, and needs adding to the removedKeys set
-             * 3. If it has been removed in a higher priority type and needs animating
-             * 4. If it hasn't been removed in a higher priority but hasn't changed, and
-             *    needs adding to the type's protectedKeys list.
-             */
-            var _a = typeState.prevResolvedValues, prevResolvedValues = _a === void 0 ? {} : _a;
-            var allKeys = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, prevResolvedValues), resolvedValues);
-            for (var key in allKeys) {
-                var next = resolvedValues[key];
-                var prev = prevResolvedValues[key];
-                // If we've already handled this we can just skip ahead
-                if (encounteredKeys.hasOwnProperty(key))
-                    continue;
-                if (next !== prev) {
-                    if (next !== undefined) {
-                        // If next is defined and doesn't equal prev, it needs animating
-                        shouldAnimateType = true;
-                        removedKeys.delete(key);
-                    }
-                    else {
-                        // If it's undefined, it's been removed.
-                        removedKeys.add(key);
-                    }
-                }
-                else if (next !== undefined && removedKeys.has(key)) {
-                    /**
-                     * If next hasn't changed and it isn't undefined, we want to check if it's
-                     * been removed by a higher priority
-                     */
-                    shouldAnimateType = true;
-                    removedKeys.delete(key);
-                }
-                else {
-                    typeState.protectedKeys[key] = true;
-                }
-            }
-            /**
-             * Update the typeState so next time setProps is called we can compare the
-             * latest prop and resolvedValues to these.
-             */
-            typeState.prevProp = prop;
-            typeState.prevResolvedValues = resolvedValues;
-            /**
-             *
-             */
-            if (typeState.isActive) {
-                encounteredKeys = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, encounteredKeys), resolvedValues);
-            }
-            /**
-             * If this is an inherited prop we want to hard-block animations
-             * TODO: Test as this should probably still handle animations triggered
-             * by removed values?
-             */
-            if (shouldAnimateType && !isInherited) {
-                animations.push.apply(animations, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(definitionList.map(function (animation) { return ({
-                    animation: animation,
-                    options: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ type: type }, options),
-                }); })));
-            }
-        };
-        /**
-         * Iterate through all animation types in reverse priority order. For each, we want to
-         * detect which values it's handling and whether or not they've changed (and therefore
-         * need to be animated). If any values have been removed, we want to detect those in
-         * lower priority props and flag for animation.
-         */
-        for (var i = 0; i < numAnimationTypes; i++) {
-            _loop_1(i);
-        }
-        /**
-         * If there are some removed value that haven't been dealt with,
-         * we need to create a new animation that falls back either to the value
-         * defined in the style prop, or the last read value.
-         */
-        if (removedKeys.size) {
-            var fallbackAnimation_1 = {};
-            removedKeys.forEach(function (key) {
-                var fallbackTarget = visualElement.getBaseValue(key, props);
-                if (fallbackTarget !== undefined) {
-                    fallbackAnimation_1[key] = fallbackTarget;
-                }
-            });
-            animations.push({ animation: fallbackAnimation_1 });
-        }
-        var shouldAnimate = Boolean(animations.length);
-        if (isInitialRender &&
-            props.initial === false &&
-            !visualElement.manuallyAnimateOnMount) {
-            shouldAnimate = false;
-        }
-        isInitialRender = false;
-        return shouldAnimate ? animate(animations) : Promise.resolve();
-    }
-    /**
-     * Change whether a certain animation type is active.
-     */
-    function setActive(type, isActive, options) {
-        var _a;
-        // If the active state hasn't changed, we can safely do nothing here
-        if (state[type].isActive === isActive)
-            return Promise.resolve();
-        // Propagate active change to children
-        (_a = visualElement.variantChildrenOrder) === null || _a === void 0 ? void 0 : _a.forEach(function (child) { var _a; return (_a = child.animationState) === null || _a === void 0 ? void 0 : _a.setActive(type, isActive); });
-        state[type].isActive = isActive;
-        return setProps(currentProps, currentContext, options, type);
-    }
-    return { getProtectedKeys: getProtectedKeys, setProps: setProps, setActive: setActive, setAnimateFunction: setAnimateFunction };
-}
-function variantsHaveChanged(prev, next) {
-    if (typeof next === "string") {
-        return next !== prev;
-    }
-    else if (isVariantLabels(next)) {
-        return !shallowCompare(next, prev);
-    }
-    return false;
-}
-function createTypeState(isActive) {
-    if (isActive === void 0) { isActive = false; }
-    return {
-        isActive: isActive,
-        protectedKeys: {},
-        prevResolvedValues: {},
-    };
-}
-function createState() {
-    var _a;
-    return _a = {},
-        _a[AnimationType.Animate] = createTypeState(true),
-        _a[AnimationType.Hover] = createTypeState(),
-        _a[AnimationType.Tap] = createTypeState(),
-        _a[AnimationType.Drag] = createTypeState(),
-        _a[AnimationType.Focus] = createTypeState(),
-        _a[AnimationType.Exit] = createTypeState(),
-        _a;
-}
-
 function createLock(name) {
     var lock = null;
     return function () {
@@ -12046,6 +12270,7 @@ function useTapGesture(_a, visualElement) {
     }
     function checkPointerEnd() {
         var _a;
+        removePointerEndListener();
         isPressing.current = false;
         (_a = visualElement.animationState) === null || _a === void 0 ? void 0 : _a.setActive(AnimationType.Tap, false);
         return !isDragActive();
@@ -12187,13 +12412,14 @@ var validMotionProps = new Set((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)([
     "layoutId",
     "onLayoutAnimationComplete",
     "onViewportBoxUpdate",
+    "onLayoutMeasure",
+    "onBeforeLayoutMeasure",
     "onAnimationStart",
     "onAnimationComplete",
     "onUpdate",
     "onDragStart",
     "onDrag",
     "onDragEnd",
-    "_onLayoutMeasure",
     "onMeasureDragConstraints",
     "onDirectionLock",
     "onDragTransitionEnd",
@@ -12260,152 +12486,42 @@ function filterProps(props) {
     return domProps;
 }
 
-function buildHTMLProps(visualElement, _a) {
-    var drag = _a.drag;
-    // The `any` isn't ideal but it is the type of createElement props argument
-    var htmlProps = {};
-    var style = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, visualElement.reactStyle), visualElement.style), visualElement.vars);
-    if (!!drag) {
-        // Disable the ghost element when a user drags
-        htmlProps.draggable = false;
-        // Disable text selection
-        style.userSelect = style.WebkitUserSelect = style.WebkitTouchCallout =
-            "none";
-        // Disable scrolling on the draggable direction
-        style.touchAction =
-            drag === true ? "none" : "pan-" + (drag === "x" ? "y" : "x");
-    }
-    htmlProps.style = style;
-    return htmlProps;
+function useInitialMotionProps(visualElement, props) {
+    var createAttrs = function () {
+        var attrs = visualElement.build().attrs;
+        var resolvedMotionValueProps = {};
+        for (var key in props) {
+            if (isMotionValue(props[key])) {
+                resolvedMotionValueProps[key] = props[key].get();
+            }
+        }
+        return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, attrs), resolvedMotionValueProps);
+    };
+    return visualElement.isStatic ? createAttrs() : useConstant(createAttrs);
 }
-
-/**
- * Build React props for SVG elements
- */
-function buildSVGProps(visualElement) {
-    return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, visualElement.attrs), { style: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, visualElement.reactStyle) });
+function useSVGProps(visualElement, props) {
+    var svgProps = useInitialMotionProps(visualElement, props);
+    var style = useStyle(visualElement, props);
+    // TODO: Figure out why these aren't being removed
+    delete style.transform;
+    delete style.transformOrigin;
+    svgProps.style = style;
+    return svgProps;
 }
 
 function useRender(Component, props, visualElement) {
     // Only filter props from components we control, ie `motion.div`. If this
     // is a custom component pass along everything provided to it.
     var forwardedProps = typeof Component === "string" ? filterProps(props) : props;
-    /**
-     * Every render, empty and rebuild the animated values to be applied to our Element.
-     * During animation these data structures are used in a mutable fashion to reduce
-     * garbage collection, but between renders we can flush them to remove values
-     * that might have been taken out of the provided props.
-     */
-    visualElement.clean();
-    visualElement.build();
     // Generate props to visually render this component
-    var visualProps = isSVGComponent(Component)
-        ? buildSVGProps(visualElement)
-        : buildHTMLProps(visualElement, props);
+    var useProps = isSVGComponent(Component) ? useSVGProps : useHTMLProps;
+    var visualProps = useProps(visualElement, props);
     return (0,react__WEBPACK_IMPORTED_MODULE_2__.createElement)(Component, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, forwardedProps), { ref: visualElement.ref }), visualProps));
 }
 
-function isForcedMotionValue(key, _a) {
-    var layout = _a.layout, layoutId = _a.layoutId;
-    return (isTransformProp(key) ||
-        isTransformOriginProp(key) ||
-        ((layout || layoutId !== undefined) && !!valueScaleCorrection[key]));
-}
 /**
- * Scrape props for MotionValues and add/remove them to this component's
- * VisualElement
- */
-function useMotionValues(visualElement, props) {
-    var prev = useConstant(empty);
-    /**
-     * Remove MotionValues that are no longer present
-     */
-    for (var key in prev) {
-        var isForced = isForcedMotionValue(key, props);
-        var existsAsProp = props[key] !== undefined;
-        var existsAsStyle = props.style && props.style[key] !== undefined;
-        var propIsMotionValue = existsAsProp && isMotionValue(props[key]);
-        var styleIsMotionValue = existsAsStyle && isMotionValue(props.style[key]);
-        var transformRemoved = isForced && !existsAsProp && !existsAsStyle;
-        var motionValueRemoved = !isForced && !propIsMotionValue && !styleIsMotionValue;
-        if (transformRemoved || motionValueRemoved) {
-            visualElement.removeValue(key);
-            delete prev[key];
-        }
-    }
-    /**
-     * Add incoming MotionValues
-     */
-    addMotionValues(visualElement, prev, props, false, props);
-    if (props.style)
-        addMotionValues(visualElement, prev, props.style, true, props);
-    /**
-     * Transform custom values if provided a handler, ie size -> width/height
-     * Ideally we'd ditch this by removing support for size and other custom values from Framer.
-     */
-    if (props.transformValues) {
-        visualElement.reactStyle = props.transformValues(visualElement.reactStyle);
-    }
-}
-/**
- * Add incoming MotionValues
- *
- * TODO: Type the VisualElements properly
- */
-function addMotionValues(visualElement, prev, source, isStyle, props) {
-    if (isStyle === void 0) { isStyle = false; }
-    if (isStyle)
-        visualElement.reactStyle = {};
-    for (var key in source) {
-        var value = source[key];
-        var foundMotionValue = false;
-        if (isMotionValue(value)) {
-            // If this is a MotionValue, add it if it isn't a reserved key
-            if (!reservedNames.has(key)) {
-                visualElement.addValue(key, value);
-                foundMotionValue = true;
-            }
-        }
-        else if (isForcedMotionValue(key, props)) {
-            // If this is a transform prop, always create a MotionValue
-            // to ensure we can reconcile them all together.
-            if (!visualElement.hasValue(key)) {
-                visualElement.addValue(key, motionValue(value));
-            }
-            else if (value !== prev[key]) {
-                if (isMotionValue(prev[key])) {
-                    /**
-                     * If the previous value was a MotionValue, and this value isn't,
-                     * we want to create a new MotionValue rather than update one that's been removed.
-                     */
-                    visualElement.addValue(key, motionValue(value));
-                }
-                else {
-                    /**
-                     * Otherwise, we just want to ensure the MotionValue is of the latest value.
-                     */
-                    var motion = visualElement.getValue(key);
-                    motion.set(value);
-                }
-            }
-            foundMotionValue = true;
-        }
-        else if (isStyle) {
-            visualElement.reactStyle[key] = value;
-        }
-        if (foundMotionValue)
-            prev[key] = value;
-    }
-}
-/**
- * These are props we accept as MotionValues but don't want to add
- * to the VisualElement
- */
-var reservedNames = new Set([]);
-var empty = function () { return ({}); };
-
-/**
- * Load features via renderless components based on the provided MotionProps
+ * Load features via renderless components based on the provided MotionProps.
+ * TODO: Look into porting this to a component-less appraoch.
  */
 function useFeatures(defaultFeatures, isStatic, visualElement, props) {
     var plugins = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(MotionConfigContext);
@@ -12428,93 +12544,15 @@ function useFeatures(defaultFeatures, isStatic, visualElement, props) {
     return features;
 }
 
-var Presence;
-(function (Presence) {
-    Presence[Presence["Entering"] = 0] = "Entering";
-    Presence[Presence["Present"] = 1] = "Present";
-    Presence[Presence["Exiting"] = 2] = "Exiting";
-})(Presence || (Presence = {}));
-var VisibilityAction;
-(function (VisibilityAction) {
-    VisibilityAction[VisibilityAction["Hide"] = 0] = "Hide";
-    VisibilityAction[VisibilityAction["Show"] = 1] = "Show";
-})(VisibilityAction || (VisibilityAction = {}));
+var MotionContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(undefined);
+function useVisualElementContext() {
+    return (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(MotionContext);
+}
 
 /**
- * Default handlers for batching VisualElements
+ * @public
  */
-var defaultHandler = {
-    measureLayout: function (child) { return child.measureLayout(); },
-    layoutReady: function (child) { return child.layoutReady(); },
-};
-/**
- * Sort VisualElements by tree depth, so we process the highest elements first.
- */
-var sortByDepth = function (a, b) {
-    return a.depth - b.depth;
-};
-/**
- * Create a batcher to process VisualElements
- */
-function createBatcher() {
-    var queue = new Set();
-    var add = function (child) { return queue.add(child); };
-    var flush = function (_a) {
-        var _b = _a === void 0 ? defaultHandler : _a, measureLayout = _b.measureLayout, layoutReady = _b.layoutReady, parent = _b.parent;
-        var order = Array.from(queue).sort(sortByDepth);
-        var resetAndMeasure = function () {
-            /**
-             * Write: Reset any transforms on children elements so we can read their actual layout
-             */
-            order.forEach(function (child) { return child.resetTransform(); });
-            /**
-             * Read: Measure the actual layout
-             */
-            order.forEach(measureLayout);
-        };
-        parent ? parent.withoutTransform(resetAndMeasure) : resetAndMeasure();
-        /**
-         * Write: Notify the VisualElements they're ready for further write operations.
-         */
-        order.forEach(layoutReady);
-        /**
-         * After all children have started animating, ensure any Entering components are set to Present.
-         * If we add deferred animations (set up all animations and then start them in two loops) this
-         * could be moved to the start loop. But it needs to happen after all the animations configs
-         * are generated in AnimateSharedLayout as this relies on presence data
-         */
-        order.forEach(function (child) {
-            if (child.isPresent)
-                child.presence = Presence.Present;
-        });
-        queue.clear();
-    };
-    return { add: add, flush: flush };
-}
-function isSharedLayout(context) {
-    return !!context.forceUpdate;
-}
-var SharedLayoutContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(createBatcher());
-/**
- * @internal
- */
-var FramerTreeLayoutContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(createBatcher());
-
-var isBrowser$1 = typeof window !== "undefined";
-var useIsomorphicLayoutEffect = isBrowser$1 ? react__WEBPACK_IMPORTED_MODULE_2__.useLayoutEffect : react__WEBPACK_IMPORTED_MODULE_2__.useEffect;
-
-function useSnapshotOnUnmount(visualElement) {
-    var syncLayout = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(SharedLayoutContext);
-    var framerSyncLayout = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(FramerTreeLayoutContext);
-    useIsomorphicLayoutEffect(function () { return function () {
-        if (isSharedLayout(syncLayout)) {
-            syncLayout.remove(visualElement);
-        }
-        if (isSharedLayout(framerSyncLayout)) {
-            framerSyncLayout.remove(visualElement);
-        }
-    }; }, []);
-}
+var PresenceContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(null);
 
 /**
  * When a component is the child of `AnimatePresence`, it can use `usePresence`
@@ -12583,154 +12621,147 @@ var incrementId = function () { return counter++; };
 var useUniqueId = function () { return useConstant(incrementId); };
 
 /**
- * Use callback either only on the initial render or on all renders. In concurrent mode
- * the "initial" render might run multiple times
- *
- * @param callback - Callback to run
- * @param isInitialOnly - Set to `true` to only run on initial render, or `false` for all renders. Defaults to `false`.
- *
- * @public
+ * @internal
  */
-function useInitialOrEveryRender(callback, isInitialOnly) {
-    if (isInitialOnly === void 0) { isInitialOnly = false; }
-    var isInitialRender = (0,react__WEBPACK_IMPORTED_MODULE_2__.useRef)(true);
-    if (!isInitialOnly || (isInitialOnly && isInitialRender.current)) {
-        callback();
-    }
-    isInitialRender.current = false;
-}
-
-function checkShouldInheritVariant(_a) {
-    var animate = _a.animate, variants = _a.variants, inherit = _a.inherit;
-    return inherit !== null && inherit !== void 0 ? inherit : (!!variants && !animate);
-}
+var LayoutGroupContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(null);
 
 /**
- * This hook is resonsible for creating the variant-propagation tree
- * relationship between VisualElements.
+ * Default handlers for batching VisualElements
  */
-function useVariants(visualElement, props, isStatic) {
-    var _a, _b, _c;
-    var variantContext = useVariantContext();
+var defaultHandler = {
+    measureLayout: function (child) { return child.updateLayoutMeasurement(); },
+    layoutReady: function (child) { return child.notifyLayoutReady(); },
+};
+/**
+ * Create a batcher to process VisualElements
+ */
+function createBatcher() {
+    var queue = new Set();
+    return {
+        add: function (child) { return queue.add(child); },
+        flush: function (_a) {
+            var _b = _a === void 0 ? defaultHandler : _a, measureLayout = _b.measureLayout, layoutReady = _b.layoutReady, parent = _b.parent;
+            var order = Array.from(queue).sort(function (a, b) { return a.depth - b.depth; });
+            var resetAndMeasure = function () {
+                /**
+                 * Write: Reset any transforms on children elements so we can read their actual layout
+                 */
+                order.forEach(function (child) { return child.resetTransform(); });
+                /**
+                 * Read: Measure the actual layout
+                 */
+                order.forEach(measureLayout);
+            };
+            parent
+                ? parent.withoutTransform(resetAndMeasure)
+                : resetAndMeasure();
+            /**
+             * Write: Notify the VisualElements they're ready for further write operations.
+             */
+            order.forEach(layoutReady);
+            /**
+             * After all children have started animating, ensure any Entering components are set to Present.
+             * If we add deferred animations (set up all animations and then start them in two loops) this
+             * could be moved to the start loop. But it needs to happen after all the animations configs
+             * are generated in AnimateSharedLayout as this relies on presence data
+             */
+            order.forEach(function (child) {
+                if (child.isPresent)
+                    child.presence = Presence.Present;
+            });
+            queue.clear();
+        },
+    };
+}
+function isSharedLayout(context) {
+    return !!context.forceUpdate;
+}
+var SharedLayoutContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(createBatcher());
+/**
+ * @internal
+ */
+var FramerTreeLayoutContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.createContext)(createBatcher());
+
+var isBrowser$1 = typeof window !== "undefined";
+var useIsomorphicLayoutEffect = isBrowser$1 ? react__WEBPACK_IMPORTED_MODULE_2__.useLayoutEffect : react__WEBPACK_IMPORTED_MODULE_2__.useEffect;
+
+function useSnapshotOnUnmount(visualElement) {
+    var syncLayout = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(SharedLayoutContext);
+    var framerSyncLayout = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(FramerTreeLayoutContext);
+    useIsomorphicLayoutEffect(function () { return function () {
+        if (isSharedLayout(syncLayout)) {
+            syncLayout.remove(visualElement);
+        }
+        if (isSharedLayout(framerSyncLayout)) {
+            framerSyncLayout.remove(visualElement);
+        }
+    }; }, []);
+}
+
+function useLayoutId(_a) {
+    var layoutId = _a.layoutId;
+    var layoutGroupId = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(LayoutGroupContext);
+    return layoutGroupId && layoutId !== undefined
+        ? layoutGroupId + "-" + layoutId
+        : layoutId;
+}
+function useVisualElement(createVisualElement, Component, props, isStatic, ref) {
+    var config = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(MotionConfigContext);
+    var parent = useVisualElementContext();
     var presenceContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.useContext)(PresenceContext);
-    /**
-     * We only add this VisualElement to the variant tree *if* we're:
-     * 1. Being provided a variants prop
-     * 2. Or being used to control variants (ie animate, whileHover etc)
-     * 3. Or being passed AnimationControls, which we have to assume may control variants.
-     * Otherwise this component should be "invisible" to variant propagation.
-     */
-    var shouldInheritVariants = checkShouldInheritVariant(props);
-    var contextDependencies = [];
-    var context = {};
-    var isControllingVariants = false;
-    if (checkIfControllingVariants(props)) {
-        isControllingVariants = true;
-        variantContext = {};
+    var layoutId = useLayoutId(props);
+    var visualElementRef = (0,react__WEBPACK_IMPORTED_MODULE_2__.useRef)(null);
+    if (isStatic && visualElementRef.current) {
+        /**
+         * Clear the VisualElement state in static mode after the initial render.
+         * This will allow the VisualElement to render every render as if its the first,
+         * with no history. This is basically a cheaper way of reinstantiating the VisualElement
+         * every render.
+         */
+        visualElementRef.current.clearState(props);
     }
-    var isVariantNode = isControllingVariants || props.variants;
-    /**
-     * Loop through each animation prop. Create context dependencies.
-     */
-    for (var i = 0; i < numVariantProps; i++) {
-        var name_1 = variantProps[i];
-        var prop = props[name_1];
-        var contextProp = variantContext[name_1];
-        if (isVariantLabel$1(prop) || prop === false) {
-            context[name_1] = prop;
-            contextDependencies.push(prop);
-        }
-        else {
-            if (isVariantLabel$1(contextProp) || contextProp === false) {
-                context[name_1] = contextProp;
-            }
-            contextDependencies.push(null);
-        }
-        contextDependencies.push(isVariantLabel$1(contextProp) ? contextProp : null);
-    }
-    var animate = (_a = props.animate) !== null && _a !== void 0 ? _a : context.animate;
-    var initial = props.initial;
-    if (initial === undefined &&
-        (isVariantLabel$1(animate) || context.initial !== false)) {
-        initial = context.initial;
-    }
-    if ((presenceContext === null || presenceContext === void 0 ? void 0 : presenceContext.initial) === false) {
-        initial = context.initial = false;
-    }
-    context.parent = isVariantNode ? visualElement : variantContext.parent;
-    useInitialOrEveryRender(function () {
-        var initialToSet = initial === false ? animate : initial;
-        if (initialToSet &&
-            typeof initialToSet !== "boolean" &&
-            !isAnimationControls(initialToSet)) {
-            setValues(visualElement, initialToSet);
-        }
-    }, !isStatic);
-    /**
-     * We want to update the "base" (or fallback) value on the initial render.
-     */
-    useInitialOrEveryRender(function () {
-        visualElement.forEachValue(function (value, key) {
-            visualElement.baseTarget[key] = value.get();
+    else if (!visualElementRef.current) {
+        visualElementRef.current = createVisualElement(Component, isStatic, {
+            parent: parent,
+            ref: ref,
+            isStatic: isStatic,
+            props: (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, props), { layoutId: layoutId }),
+            presenceId: presenceContext === null || presenceContext === void 0 ? void 0 : presenceContext.id,
+            blockInitialAnimation: (presenceContext === null || presenceContext === void 0 ? void 0 : presenceContext.initial) === false,
         });
-    }, true);
-    var nextContext = (0,react__WEBPACK_IMPORTED_MODULE_2__.useMemo)(function () { return context; }, contextDependencies);
-    /**
-     * Subscribe to the parent visualElement if this is a participant in the variant tree
-     */
-    var remove;
-    if (isVariantNode && shouldInheritVariants && !isControllingVariants) {
-        remove = (_b = variantContext.parent) === null || _b === void 0 ? void 0 : _b.addVariantChild(visualElement);
-        visualElement.inheritsVariants = true;
     }
-    /**
-     *
-     */
-    if (!isControllingVariants &&
-        shouldInheritVariants && ((_c = visualElement.parent) === null || _c === void 0 ? void 0 : _c.isMounted) &&
-        initial !== false &&
-        animate) {
-        visualElement.manuallyAnimateOnMount = true;
-    }
-    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
-        visualElement.isMounted = true;
-        return function () {
-            visualElement.isMounted = false;
-            remove === null || remove === void 0 ? void 0 : remove();
-        };
-    }, []);
-    /**
-     * What we want here is to clear the order of variant children in useLayoutEffect
-     * then children can re-add themselves in useEffect. This should add them in the intended order
-     * for staggerChildren to work correctly.
-     */
+    var visualElement = visualElementRef.current;
     useIsomorphicLayoutEffect(function () {
-        var _a;
-        isPresent(presenceContext) && ((_a = visualElement.variantChildrenOrder) === null || _a === void 0 ? void 0 : _a.clear());
+        visualElement.setProps((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, config), props), { layoutId: layoutId }));
+        visualElement.isPresent = isPresent(presenceContext);
+        visualElement.isPresenceRoot =
+            !parent || parent.presenceId !== (presenceContext === null || presenceContext === void 0 ? void 0 : presenceContext.id);
+        /**
+         * Fire a render to ensure the latest state is reflected on-screen.
+         */
+        if (!visualElement.isStatic)
+            visualElement.syncRender();
     });
+    /**
+     * Don't fire unnecessary effects if this is a static component.
+     */
+    if (isStatic)
+        return visualElement;
     (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
         var _a;
-        isVariantNode && ((_a = variantContext.parent) === null || _a === void 0 ? void 0 : _a.addVariantChildOrder(visualElement));
+        /**
+         * In a future refactor we can replace the features-as-components and
+         * have this loop through them all firing "effect" listeners
+         */
+        (_a = visualElement.animationState) === null || _a === void 0 ? void 0 : _a.animateChanges();
     });
-    return nextContext;
-}
-var variantProps = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__spread)(["initial"], variantPriorityOrder);
-var numVariantProps = variantProps.length;
-function isVariantLabel$1(v) {
-    return typeof v === "string" || Array.isArray(v);
-}
-function isAnimationControls(v) {
-    return typeof v === "object" && typeof v.start === "function";
-}
-function checkIfControllingVariants(props) {
-    var _a;
-    return (typeof ((_a = props.animate) === null || _a === void 0 ? void 0 : _a.start) === "function" ||
-        isVariantLabel$1(props.animate) ||
-        isVariantLabel$1(props.whileHover) ||
-        isVariantLabel$1(props.whileDrag) ||
-        isVariantLabel$1(props.whileTap) ||
-        isVariantLabel$1(props.whileFocus) ||
-        isVariantLabel$1(props.exit));
+    /**
+     * If this component is a child of AnimateSharedLayout, we need to snapshot the component
+     * before it's unmounted. This lives here rather than in features/layout/Measure because
+     * as a child component its unmount effect runs after this component has been unmounted.
+     */
+    useSnapshotOnUnmount(visualElement);
+    return visualElement;
 }
 
 /**
@@ -12745,7 +12776,7 @@ function checkIfControllingVariants(props) {
  * @internal
  */
 function createMotionComponent(Component, _a) {
-    var defaultFeatures = _a.defaultFeatures, useVisualElement = _a.useVisualElement, useRender = _a.useRender;
+    var defaultFeatures = _a.defaultFeatures, createVisualElement = _a.createVisualElement, useRender = _a.useRender;
     function MotionComponent(props, externalRef) {
         /**
          * If a component is static, we only visually update it as a
@@ -12760,37 +12791,16 @@ function createMotionComponent(Component, _a) {
          * providing a way of rendering to these APIs outside of the React render loop
          * for more performant animations and interactions
          */
-        var visualElement = useVisualElement(Component, props, isStatic, externalRef);
-        /**
-         * Scrape MotionValues from props and add/remove them to/from the VisualElement.
-         */
-        useMotionValues(visualElement, props);
-        /**
-         * Add the visualElement as a node in the variant tree.
-         */
-        var variantContext = useVariants(visualElement, props, isStatic);
+        var visualElement = useVisualElement(createVisualElement, Component, props, isStatic, externalRef);
         /**
          * Load features as renderless components unless the component isStatic
          */
         var features = useFeatures(defaultFeatures, isStatic, visualElement, props);
-        /**
-         * Only create a new context value when the sub-contexts change.
-         */
-        var context = (0,react__WEBPACK_IMPORTED_MODULE_2__.useMemo)(function () { return ({ visualElement: visualElement, variantContext: variantContext }); }, [
-            visualElement,
-            variantContext,
-        ]);
         var component = useRender(Component, props, visualElement);
-        /**
-         * If this component is a child of AnimateSharedLayout, we need to snapshot the component
-         * before it's unmounted. This lives here rather than in features/layout/Measure because
-         * as a child component its unmount effect runs after this component has been unmounted.
-         */
-        useSnapshotOnUnmount(visualElement);
         // The mount order and hierarchy is specific to ensure our element ref is hydrated by the time
         // all plugins and features has to execute.
         return ((0,react__WEBPACK_IMPORTED_MODULE_2__.createElement)(react__WEBPACK_IMPORTED_MODULE_2__.Fragment, null,
-            (0,react__WEBPACK_IMPORTED_MODULE_2__.createElement)(MotionContext.Provider, { value: context }, component),
+            (0,react__WEBPACK_IMPORTED_MODULE_2__.createElement)(MotionContext.Provider, { value: visualElement }, component),
             features));
     }
     return (0,react__WEBPACK_IMPORTED_MODULE_2__.forwardRef)(MotionComponent);
@@ -12999,7 +13009,7 @@ var VisualElementDragControls = /** @class */ (function () {
              * stick to the correct place under the pointer.
              */
             _this.prepareBoundingBox();
-            _this.visualElement.lockTargetBox();
+            _this.visualElement.lockProjectionTarget();
             /**
              * Resolve the drag constraints. These are either set as top/right/bottom/left constraints
              * relative to the element's layout, or a ref to another element. Both need converting to
@@ -13019,7 +13029,7 @@ var VisualElementDragControls = /** @class */ (function () {
              */
             var point = getViewportPointFromEvent(event).point;
             eachAxis(function (axis) {
-                var _a = _this.visualElement.targetBox[axis], min = _a.min, max = _a.max;
+                var _a = _this.visualElement.projection.target[axis], min = _a.min, max = _a.max;
                 _this.cursorProgress[axis] = cursorProgress
                     ? cursorProgress[axis]
                     : (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.progress)(min, max, point[axis]);
@@ -13078,17 +13088,17 @@ var VisualElementDragControls = /** @class */ (function () {
     VisualElementDragControls.prototype.prepareBoundingBox = function () {
         var visualElement = this.visualElement;
         visualElement.withoutTransform(function () {
-            visualElement.measureLayout();
+            visualElement.updateLayoutMeasurement();
         });
-        visualElement.rebaseTargetBox(true, visualElement.getBoundingBoxWithoutTransforms());
+        visualElement.rebaseProjectionTarget(true, visualElement.measureViewportBox(false));
     };
     VisualElementDragControls.prototype.resolveDragConstraints = function () {
         var _this = this;
         var dragConstraints = this.props.dragConstraints;
         if (dragConstraints) {
             this.constraints = isRefObject(dragConstraints)
-                ? this.resolveRefConstraints(this.visualElement.box, dragConstraints)
-                : calcRelativeConstraints(this.visualElement.box, dragConstraints);
+                ? this.resolveRefConstraints(this.visualElement.getLayoutState().layout, dragConstraints)
+                : calcRelativeConstraints(this.visualElement.getLayoutState().layout, dragConstraints);
         }
         else {
             this.constraints = false;
@@ -13100,7 +13110,7 @@ var VisualElementDragControls = /** @class */ (function () {
         if (this.constraints && !this.hasMutatedConstraints) {
             eachAxis(function (axis) {
                 if (_this.getAxisMotionValue(axis)) {
-                    _this.constraints[axis] = rebaseAxisConstraints(_this.visualElement.box[axis], _this.constraints[axis]);
+                    _this.constraints[axis] = rebaseAxisConstraints(_this.visualElement.getLayoutState().layout[axis], _this.constraints[axis]);
                 }
             });
         }
@@ -13137,7 +13147,7 @@ var VisualElementDragControls = /** @class */ (function () {
     };
     VisualElementDragControls.prototype.stop = function (event, info) {
         var _a;
-        this.visualElement.unlockTargetBox();
+        this.visualElement.unlockProjectionTarget();
         (_a = this.panSession) === null || _a === void 0 ? void 0 : _a.end();
         this.panSession = null;
         var isDragging = this.isDragging;
@@ -13162,7 +13172,7 @@ var VisualElementDragControls = /** @class */ (function () {
             var axisValue = _this.getAxisMotionValue(axis);
             if (axisValue) {
                 var point = getViewportPointFromEvent(event).point;
-                var box = _this.visualElement.box;
+                var box = _this.visualElement.getLayoutState().layout;
                 var length_1 = box[axis].max - box[axis].min;
                 var center = box[axis].min + length_1 / 2;
                 var offset = point[axis] - center;
@@ -13202,7 +13212,7 @@ var VisualElementDragControls = /** @class */ (function () {
         var _a;
         var dragElastic = this.props.dragElastic;
         // Get the actual layout bounding box of the element
-        var axisLayout = this.visualElement.box[axis];
+        var axisLayout = this.visualElement.getLayoutState().layout[axis];
         // Calculate its current length. In the future we might want to lerp this to animate
         // between lengths if the layout changes as we change the DOM
         var axisLength = axisLayout.max - axisLayout.min;
@@ -13212,9 +13222,9 @@ var VisualElementDragControls = /** @class */ (function () {
         // Calculate a new min point based on the latest pointer position, constraints and elastic
         var min = calcConstrainedMinPoint(point[axis], axisLength, axisProgress, (_a = this.constraints) === null || _a === void 0 ? void 0 : _a[axis], dragElastic);
         // Update the axis viewport target with this new min and the length
-        this.visualElement.setAxisTarget(axis, min, min + axisLength);
+        this.visualElement.setProjectionTargetAxis(axis, min, min + axisLength);
     };
-    VisualElementDragControls.prototype.updateProps = function (_a) {
+    VisualElementDragControls.prototype.setProps = function (_a) {
         var _b = _a.drag, drag = _b === void 0 ? false : _b, _c = _a.dragDirectionLock, dragDirectionLock = _c === void 0 ? false : _c, _d = _a.dragPropagation, dragPropagation = _d === void 0 ? false : _d, _e = _a.dragConstraints, dragConstraints = _e === void 0 ? false : _e, _f = _a.dragElastic, dragElastic = _f === void 0 ? 0.35 : _f, _g = _a.dragMomentum, dragMomentum = _g === void 0 ? true : _g, remainingProps = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["drag", "dragDirectionLock", "dragPropagation", "dragConstraints", "dragElastic", "dragMomentum"]);
         this.props = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ drag: drag,
             dragDirectionLock: dragDirectionLock,
@@ -13264,7 +13274,7 @@ var VisualElementDragControls = /** @class */ (function () {
             // otherwise we just have to animate the `MotionValue` itself.
             return _this.getAxisMotionValue(axis)
                 ? _this.startAxisValueAnimation(axis, inertia)
-                : _this.visualElement.startLayoutAxisAnimation(axis, inertia);
+                : _this.visualElement.startLayoutAnimation(axis, inertia);
         });
         // Run all animations and then resolve the new drag constraints.
         return Promise.all(momentumAnimations).then(function () {
@@ -13300,7 +13310,7 @@ var VisualElementDragControls = /** @class */ (function () {
         // Record the relative progress of the targetBox relative to the constraintsBox
         var boxProgress = { x: 0, y: 0 };
         eachAxis(function (axis) {
-            boxProgress[axis] = calcOrigin(_this.visualElement.targetBox[axis], _this.constraintsBox[axis]);
+            boxProgress[axis] = calcOrigin(_this.visualElement.projection.target[axis], _this.constraintsBox[axis]);
         });
         /**
          * For each axis, calculate the current progress of the layout axis within the constraints.
@@ -13314,8 +13324,8 @@ var VisualElementDragControls = /** @class */ (function () {
                 return;
             // Calculate the position of the targetBox relative to the constraintsBox using the
             // previously calculated progress
-            var _a = calcPositionFromProgress(_this.visualElement.targetBox[axis], _this.constraintsBox[axis], boxProgress[axis]), min = _a.min, max = _a.max;
-            _this.visualElement.setAxisTarget(axis, min, max);
+            var _a = calcPositionFromProgress(_this.visualElement.projection.target[axis], _this.constraintsBox[axis], boxProgress[axis]), min = _a.min, max = _a.max;
+            _this.visualElement.setProjectionTargetAxis(axis, min, max);
         });
     };
     VisualElementDragControls.prototype.mount = function (visualElement) {
@@ -13347,11 +13357,10 @@ var VisualElementDragControls = /** @class */ (function () {
          * If the previous component with this same layoutId was dragging at the time
          * it was unmounted, we want to continue the same gesture on this component.
          */
-        var prevSnapshot = visualElement.prevSnapshot;
-        (prevSnapshot === null || prevSnapshot === void 0 ? void 0 : prevSnapshot.isDragging) &&
-            this.start(lastPointerEvent, {
-                cursorProgress: prevSnapshot.cursorProgress,
-            });
+        var prevDragCursor = visualElement.prevDragCursor;
+        if (prevDragCursor) {
+            this.start(lastPointerEvent, { cursorProgress: prevDragCursor });
+        }
         /**
          * Return a function that will teardown the drag gesture
          */
@@ -13400,7 +13409,7 @@ function useDrag(props, visualElement) {
             visualElement: visualElement,
         });
     });
-    dragControls.updateProps((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, props), { transformPagePoint: transformPagePoint }));
+    dragControls.setProps((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, props), { transformPagePoint: transformPagePoint }));
     // If we've been provided a DragControls for manual control over the drag gesture,
     // subscribe this component to it on mount.
     (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () { return groupDragControls && groupDragControls.subscribe(dragControls); }, [dragControls]);
@@ -13420,6 +13429,11 @@ var Drag = {
     shouldRender: function (props) { return !!props.drag || !!props.dragControls; },
     getComponent: function () { return Component; },
 };
+
+function checkShouldInheritVariant(_a) {
+    var animate = _a.animate, variants = _a.variants, inherit = _a.inherit;
+    return inherit !== null && inherit !== void 0 ? inherit : (!!variants && !animate);
+}
 
 /**
  * TODO: This component is quite small and no longer directly imports animation code.
@@ -13444,22 +13458,6 @@ var Exit = {
     getComponent: function () { return ExitComponent; },
 };
 
-/**
- * `useAnimationGroupSubscription` allows a component to subscribe to an
- * externally-created `AnimationControls`, created by the `useAnimation` hook.
- *
- * @param animation
- * @param controls
- *
- * @internal
- */
-function useAnimationGroupSubscription(visualElement, animation) {
-    var unsubscribe = (0,react__WEBPACK_IMPORTED_MODULE_2__.useMemo)(function () { return animation.subscribe(visualElement); }, [
-        animation,
-    ]);
-    useUnmountEffect(function () { return unsubscribe === null || unsubscribe === void 0 ? void 0 : unsubscribe(); });
-}
-
 var AnimationState = makeRenderlessComponent(function (props) {
     var visualElement = props.visualElement, animate = props.animate;
     /**
@@ -13468,20 +13466,11 @@ var AnimationState = makeRenderlessComponent(function (props) {
      * so people can optionally code split it out using the `m` component.
      */
     visualElement.animationState || (visualElement.animationState = createAnimationState(visualElement));
-    var variantContext = useVariantContext();
-    /**
-     * Every render, we want to update the AnimationState with the latest props
-     * and context. We could add these to the dependency list but as many of these
-     * props can be objects or arrays it's not clear that we'd gain much performance.
-     */
-    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
-        visualElement.animationState.setProps(props, visualElement.inheritsVariants ? variantContext : undefined);
-    });
     /**
      * Subscribe any provided AnimationControls to the component's VisualElement
      */
-    if (animate instanceof AnimationControls) {
-        useAnimationGroupSubscription(visualElement, animate);
+    if (isAnimationControls(animate)) {
+        (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () { return animate.subscribe(visualElement); }, [animate]);
     }
 });
 /**
@@ -13522,15 +13511,27 @@ var Animate = /** @class */ (function (_super) {
             x: undefined,
             y: undefined,
         };
+        _this.isAnimatingTree = false;
         _this.animate = function (target, origin, _a) {
             if (_a === void 0) { _a = {}; }
-            var originBox = _a.originBox, targetBox = _a.targetBox, visibilityAction = _a.visibilityAction, shouldStackAnimate = _a.shouldStackAnimate, config = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["originBox", "targetBox", "visibilityAction", "shouldStackAnimate"]);
+            var originBox = _a.originBox, targetBox = _a.targetBox, visibilityAction = _a.visibilityAction, shouldStackAnimate = _a.shouldStackAnimate, onComplete = _a.onComplete, config = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["originBox", "targetBox", "visibilityAction", "shouldStackAnimate", "onComplete"]);
             var _b = _this.props, visualElement = _b.visualElement, layout = _b.layout;
             /**
              * Early return if we've been instructed not to animate this render.
              */
-            if (shouldStackAnimate === false)
+            if (shouldStackAnimate === false) {
+                _this.isAnimatingTree = false;
                 return _this.safeToRemove();
+            }
+            /**
+             * Prioritise tree animations
+             */
+            if (_this.isAnimatingTree && shouldStackAnimate !== true) {
+                return;
+            }
+            else if (shouldStackAnimate) {
+                _this.isAnimatingTree = true;
+            }
             /**
              * Allow the measured origin (prev bounding box) and target (actual layout) to be
              * overridden by the provided config.
@@ -13547,14 +13548,11 @@ var Animate = /** @class */ (function (_super) {
                     var targetLength = target[axis].max - target[axis].min;
                     origin[axis].max = origin[axis].min + targetLength;
                 }
-                if (visualElement.isTargetBoxLocked) {
+                if (visualElement.projection.isTargetLocked) {
                     return;
                 }
                 else if (visibilityAction !== undefined) {
-                    // If we're meant to show/hide the visualElement, do so
-                    visibilityAction === VisibilityAction.Hide
-                        ? visualElement.hide()
-                        : visualElement.show();
+                    visualElement.setVisibility(visibilityAction === VisibilityAction.Show);
                 }
                 else if (boxHasMoved) {
                     // If the box has moved, animate between it's current visual state and its
@@ -13564,25 +13562,20 @@ var Animate = /** @class */ (function (_super) {
                 else {
                     // If the box has remained in the same place, immediately set the axis target
                     // to the final desired state
-                    return visualElement.setAxisTarget(axis, target[axis].min, target[axis].max);
+                    return visualElement.setProjectionTargetAxis(axis, target[axis].min, target[axis].max);
                 }
             });
             // Force a render to ensure there's no flash of uncorrected bounding box.
-            visualElement.render();
+            visualElement.syncRender();
             /**
              * If this visualElement isn't present (ie it's been removed from the tree by the user but
              * kept in by the tree by AnimatePresence) then call safeToRemove when all axis animations
              * have successfully finished.
              */
             return Promise.all(animations).then(function () {
-                var _a, _b;
-                (_b = (_a = _this.props).onLayoutAnimationComplete) === null || _b === void 0 ? void 0 : _b.call(_a);
-                if (visualElement.isPresent) {
-                    visualElement.presence = Presence.Present;
-                }
-                else {
-                    _this.safeToRemove();
-                }
+                _this.isAnimatingTree = false;
+                onComplete && onComplete();
+                visualElement.notifyLayoutAnimationComplete();
             });
         };
         return _this;
@@ -13593,7 +13586,7 @@ var Animate = /** @class */ (function (_super) {
         visualElement.animateMotionValue = startAnimation;
         visualElement.enableLayoutProjection();
         this.unsubLayoutReady = visualElement.onLayoutUpdate(this.animate);
-        visualElement.updateConfig((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, visualElement.config), { safeToRemove: function () { return _this.safeToRemove(); } }));
+        visualElement.layoutSafeToRemove = function () { return _this.safeToRemove(); };
     };
     Animate.prototype.componentWillUnmount = function () {
         var _this = this;
@@ -13602,16 +13595,16 @@ var Animate = /** @class */ (function (_super) {
     };
     /**
      * TODO: This manually performs animations on the visualElement's layout progress
-     * values. It'd be preferable to amend the HTMLVisualElement.startLayoutAxisAnimation
+     * values. It'd be preferable to amend the startLayoutAxisAnimation
      * API to accept more custom animations like this.
      */
     Animate.prototype.animateAxis = function (axis, target, origin, _a) {
         var _b, _c;
-        var _d = _a === void 0 ? {} : _a, transition = _d.transition, crossfadeOpacity = _d.crossfadeOpacity;
+        var transition = (_a === void 0 ? {} : _a).transition;
         (_c = (_b = this.stopAxisAnimation)[axis]) === null || _c === void 0 ? void 0 : _c.call(_b);
         var visualElement = this.props.visualElement;
         var frameTarget = this.frameTarget[axis];
-        var layoutProgress = visualElement.getAxisProgress()[axis];
+        var layoutProgress = visualElement.getProjectionAnimationProgress()[axis];
         /**
          * Set layout progress back to 0. We set it twice to hard-reset any velocity that might
          * be re-incoporated into a subsequent spring animation.
@@ -13619,15 +13612,6 @@ var Animate = /** @class */ (function (_super) {
         layoutProgress.clearListeners();
         layoutProgress.set(0);
         layoutProgress.set(0);
-        /**
-         * If this is a crossfade animation, create a function that updates both the opacity of this component
-         * and the one being crossfaded out.
-         */
-        var crossfade;
-        if (crossfadeOpacity) {
-            crossfade = this.createCrossfadeAnimation(crossfadeOpacity);
-            visualElement.show();
-        }
         /**
          * Create an animation function to run once per frame. This will tween the visual bounding box from
          * origin to target using the latest progress value.
@@ -13637,14 +13621,12 @@ var Animate = /** @class */ (function (_super) {
             var p = layoutProgress.get() / progressTarget;
             // Tween the axis and update the visualElement with the latest values
             tweenAxis(frameTarget, origin, target, p);
-            visualElement.setAxisTarget(axis, frameTarget.min, frameTarget.max);
-            // If this is a crossfade animation, update both elements.
-            crossfade === null || crossfade === void 0 ? void 0 : crossfade(p);
+            visualElement.setProjectionTargetAxis(axis, frameTarget.min, frameTarget.max);
         };
         // Synchronously run a frame to ensure there's no flash of the uncorrected bounding box.
         frame();
         // Ensure that the layout delta is updated for this frame.
-        visualElement.updateLayoutDelta();
+        visualElement.updateLayoutProjection();
         // Create a function to stop animation on this specific axis
         var unsubscribeProgress = layoutProgress.onChange(frame);
         // Start the animation on this axis
@@ -13654,14 +13636,6 @@ var Animate = /** @class */ (function (_super) {
             unsubscribeProgress();
         };
         return animation;
-    };
-    Animate.prototype.createCrossfadeAnimation = function (crossfadeOpacity) {
-        var visualElement = this.props.visualElement;
-        var opacity = visualElement.getValue("opacity", 0);
-        return function (p) {
-            opacity.set(easeCrossfadeIn((0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(0, 1, p)));
-            crossfadeOpacity.set(easeCrossfadeOut((0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(1, 0, p)));
-        };
     };
     Animate.prototype.safeToRemove = function () {
         var _a, _b;
@@ -13692,24 +13666,14 @@ var defaultTransition = {
     duration: 0.45,
     ease: [0.4, 0, 0.1, 1],
 };
-function compress(min, max, easing) {
-    return function (p) {
-        // Could replace ifs with clamp
-        if (p < min)
-            return 0;
-        if (p > max)
-            return 1;
-        return easing((0,popmotion__WEBPACK_IMPORTED_MODULE_4__.progress)(min, max, p));
-    };
-}
-var easeCrossfadeIn = compress(0, 0.5, popmotion__WEBPACK_IMPORTED_MODULE_4__.circOut);
-var easeCrossfadeOut = compress(0.5, 0.95, popmotion__WEBPACK_IMPORTED_MODULE_4__.linear);
 /**
  * @public
  */
 var AnimateLayout = {
     key: "animate-layout",
-    shouldRender: function (props) { return !!props.layout || !!props.layoutId; },
+    shouldRender: function (props) {
+        return !!props.layout || props.layoutId !== undefined;
+    },
     getComponent: function () { return AnimateLayoutContextProvider; },
 };
 
@@ -13742,7 +13706,7 @@ var Measure = /** @class */ (function (_super) {
             syncLayout.syncUpdate();
         }
         else {
-            visualElement.snapshotBoundingBox();
+            visualElement.snapshotViewportBox();
             syncLayout.add(visualElement);
         }
         return null;
@@ -13755,7 +13719,7 @@ var Measure = /** @class */ (function (_super) {
          * If this axis isn't animating as a result of this render we want to reset the targetBox
          * to the measured box
          */
-        visualElement.rebaseTargetBox();
+        visualElement.rebaseProjectionTarget();
     };
     Measure.prototype.render = function () {
         return null;
@@ -13770,7 +13734,7 @@ function MeasureContextProvider(props) {
 var MeasureLayout = {
     key: "measure-layout",
     shouldRender: function (props) {
-        return !!props.drag || !!props.layout || !!props.layoutId;
+        return !!props.drag || !!props.layout || props.layoutId !== undefined;
     },
     getComponent: function () { return MeasureContextProvider; },
 };
@@ -13784,7 +13748,7 @@ var allMotionFeatures = [
     AnimateLayout,
 ];
 var domBaseConfig = {
-    useVisualElement: useDomVisualElement,
+    createVisualElement: createDomVisualElement,
     useRender: useRender,
 };
 /**
@@ -13868,27 +13832,25 @@ var PresenceChild = function (_a) {
     var children = _a.children, initial = _a.initial, isPresent = _a.isPresent, onExitComplete = _a.onExitComplete, custom = _a.custom, presenceAffectsLayout = _a.presenceAffectsLayout;
     var presenceChildren = useConstant(newChildrenMap);
     var id = useConstant(getPresenceId);
-    var context = (0,react__WEBPACK_IMPORTED_MODULE_2__.useMemo)(function () {
-        return {
-            id: id,
-            initial: initial,
-            isPresent: isPresent,
-            custom: custom,
-            onExitComplete: function (childId) {
-                presenceChildren.set(childId, true);
-                var allComplete = true;
-                presenceChildren.forEach(function (isComplete) {
-                    if (!isComplete)
-                        allComplete = false;
-                });
-                allComplete && (onExitComplete === null || onExitComplete === void 0 ? void 0 : onExitComplete());
-            },
-            register: function (childId) {
-                presenceChildren.set(childId, false);
-                return function () { return presenceChildren.delete(childId); };
-            },
-        };
-    }, 
+    var context = (0,react__WEBPACK_IMPORTED_MODULE_2__.useMemo)(function () { return ({
+        id: id,
+        initial: initial,
+        isPresent: isPresent,
+        custom: custom,
+        onExitComplete: function (childId) {
+            presenceChildren.set(childId, true);
+            var allComplete = true;
+            presenceChildren.forEach(function (isComplete) {
+                if (!isComplete)
+                    allComplete = false;
+            });
+            allComplete && (onExitComplete === null || onExitComplete === void 0 ? void 0 : onExitComplete());
+        },
+        register: function (childId) {
+            presenceChildren.set(childId, false);
+            return function () { return presenceChildren.delete(childId); };
+        },
+    }); }, 
     /**
      * If the presence of a child affects the layout of the components around it,
      * we want to make a new context value to ensure they get re-rendered
@@ -13897,6 +13859,13 @@ var PresenceChild = function (_a) {
     presenceAffectsLayout ? undefined : [isPresent]);
     (0,react__WEBPACK_IMPORTED_MODULE_2__.useMemo)(function () {
         presenceChildren.forEach(function (_, key) { return presenceChildren.set(key, false); });
+    }, [isPresent]);
+    /**
+     * If there's no `motion` components to fire exit animations, we want to remove this
+     * component immediately.
+     */
+    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
+        !isPresent && !presenceChildren.size && (onExitComplete === null || onExitComplete === void 0 ? void 0 : onExitComplete());
     }, [isPresent]);
     return ((0,react__WEBPACK_IMPORTED_MODULE_2__.createElement)(PresenceContext.Provider, { value: context }, children));
 };
@@ -14083,235 +14052,330 @@ var AnimatePresence = function (_a) {
         : childrenToRender.map(function (child) { return (0,react__WEBPACK_IMPORTED_MODULE_2__.cloneElement)(child); })));
 };
 
-function createSwitchAnimation(child, stack) {
-    if (stack && child !== stack.lead) {
-        return { visibilityAction: VisibilityAction.Hide };
-    }
-    else if (stack &&
-        child.presence !== Presence.Entering &&
-        child === stack.lead &&
-        stack.lead !== stack.prevLead) {
-        return { visibilityAction: VisibilityAction.Show };
-    }
-    var originBox;
-    var targetBox;
-    if (child.presence === Presence.Entering) {
-        originBox = stack === null || stack === void 0 ? void 0 : stack.getFollowOrigin();
-    }
-    else if (child.presence === Presence.Exiting) {
-        targetBox = stack === null || stack === void 0 ? void 0 : stack.getFollowTarget();
-    }
-    return { originBox: originBox, targetBox: targetBox };
-}
-function createCrossfadeAnimation(child, stack) {
-    var _a, _b, _c;
-    var config = {};
-    var stackLead = stack && stack.lead;
-    var stackLeadPresence = stackLead === null || stackLead === void 0 ? void 0 : stackLead.presence;
-    if (stack && child === stackLead) {
-        if (child.presence === Presence.Entering) {
-            config.originBox = stack.getFollowOrigin();
-        }
-        else if (child.presence === Presence.Exiting) {
-            config.targetBox = stack.getFollowTarget();
-        }
-    }
-    else if (stack && child === stack.follow) {
-        config.transition = stack.getLeadTransition();
-        if (stackLeadPresence === Presence.Entering) {
-            config.targetBox = stack.getLeadTarget();
-        }
-        else if (stackLeadPresence === Presence.Exiting) {
-            config.originBox = stack.getLeadOrigin();
-        }
-    }
-    // If neither the lead or follow component is the root child of AnimatePresence,
-    // don't handle crossfade animations
-    if (!((_a = stack === null || stack === void 0 ? void 0 : stack.follow) === null || _a === void 0 ? void 0 : _a.isPresenceRoot) && !(stackLead === null || stackLead === void 0 ? void 0 : stackLead.isPresenceRoot)) {
-        return config;
-    }
-    if (!stack || child === stackLead) {
-        if (child.presence === Presence.Entering) {
-            config.crossfadeOpacity = (_b = stack === null || stack === void 0 ? void 0 : stack.follow) === null || _b === void 0 ? void 0 : _b.getValue("opacity", 0);
-        }
-    }
-    else if (stack && child === stack.follow) {
-        if (!stackLead || stackLeadPresence === Presence.Entering) ;
-        else if (stackLeadPresence === Presence.Exiting) {
-            config.crossfadeOpacity = (_c = stack === null || stack === void 0 ? void 0 : stack.lead) === null || _c === void 0 ? void 0 : _c.getValue("opacity", 1);
-        }
-    }
-    else {
-        config.visibilityAction = VisibilityAction.Hide;
-    }
-    return config;
+/**
+ * Animate a single value or a `MotionValue`.
+ *
+ * The first argument is either a `MotionValue` to animate, or an initial animation value.
+ *
+ * The second is either a value to animate to, or an array of keyframes to animate through.
+ *
+ * The third argument can be either tween or spring options, and optional lifecycle methods: `onUpdate`, `onPlay`, `onComplete`, `onRepeat` and `onStop`.
+ *
+ * Returns `PlaybackControls`, currently just a `stop` method.
+ *
+ * ```javascript
+ * const x = useMotionValue(0)
+ *
+ * useEffect(() => {
+ *   const controls = animate(x, 100, {
+ *     type: "spring",
+ *     stiffness: 2000,
+ *     onComplete: v => {}
+ *   })
+ *
+ *   return controls.stop
+ * })
+ * ```
+ *
+ * @public
+ */
+function animate(from, to, transition) {
+    if (transition === void 0) { transition = {}; }
+    var value = isMotionValue(from) ? from : motionValue(from);
+    startAnimation("", value, to, transition);
+    return {
+        stop: function () { return value.stop(); },
+    };
 }
 
-/**
- * For each layout animation, we want to identify two components
- * within a stack that will serve as the "lead" and "follow" components.
- *
- * In the switch animation, the lead component performs the entire animation.
- * It uses the follow bounding box to animate out from and back to. The follow
- * component is hidden.
- *
- * In the crossfade animation, both the lead and follow components perform
- * the entire animation, animating from the follow origin bounding box to the lead
- * target bounding box.
- *
- * Generalising a stack as First In Last Out, *searching from the end* we can
- * generally consider the lead component to be:
- *  - If the last child is present, the last child
- *  - If the last child is exiting, the last *encountered* exiting component
- */
-function findLeadAndFollow(stack, _a) {
-    var _b = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(_a, 2), prevLead = _b[0], prevFollow = _b[1];
-    var lead = undefined;
-    var leadIndex = 0;
-    var follow = undefined;
-    // Find the lead child first
-    var numInStack = stack.length;
-    var lastIsPresent = false;
-    for (var i = numInStack - 1; i >= 0; i--) {
-        var child = stack[i];
-        var isLastInStack = i === numInStack - 1;
-        if (isLastInStack)
-            lastIsPresent = child.isPresent;
-        if (lastIsPresent) {
-            lead = child;
-        }
-        else {
-            // If the child before this will be present, make this the
-            // lead.
-            var prev = stack[i - 1];
-            if (prev && prev.isPresent)
-                lead = child;
-        }
-        if (lead) {
-            leadIndex = i;
-            break;
-        }
+function createCrossfader() {
+    /**
+     * The current state of the crossfade as a value between 0 and 1
+     */
+    var progress = motionValue(1);
+    var options = {
+        lead: undefined,
+        follow: undefined,
+        crossfadeOpacity: false,
+        preserveFollowOpacity: false,
+    };
+    var leadState = {};
+    var followState = {};
+    /**
+     *
+     */
+    var isActive = false;
+    /**
+     *
+     */
+    var finalCrossfadeFrame = null;
+    /**
+     * Framestamp of the last frame we updated values at.
+     */
+    var prevUpdate = 0;
+    function startCrossfadeAnimation(target, transition) {
+        var lead = options.lead, follow = options.follow;
+        isActive = true;
+        finalCrossfadeFrame = null;
+        return animate(progress, target, (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, transition), { onUpdate: function () {
+                lead && lead.scheduleRender();
+                follow && follow.scheduleRender();
+            }, onComplete: function () {
+                isActive = false;
+                /**
+                 * If the crossfade animation is no longer active, flag a frame
+                 * that we're still allowed to crossfade
+                 */
+                finalCrossfadeFrame = (0,framesync__WEBPACK_IMPORTED_MODULE_0__.getFrameData)().timestamp;
+            } }));
     }
-    if (!lead)
-        lead = stack[0];
-    // Find the follow child
-    follow = stack[leadIndex - 1];
-    // If the lead component is exiting, find the closest follow
-    // present component
-    if (lead) {
-        for (var i = leadIndex - 1; i >= 0; i--) {
-            var child = stack[i];
-            if (child.isPresent) {
-                follow = child;
-                break;
-            }
+    function updateCrossfade() {
+        var _a, _b;
+        /**
+         * We only want to compute the crossfade once per frame, so we
+         * compare the previous update framestamp with the current frame
+         * and early return if they're the same.
+         */
+        var timestamp = (0,framesync__WEBPACK_IMPORTED_MODULE_0__.getFrameData)().timestamp;
+        var lead = options.lead, follow = options.follow;
+        if (timestamp === prevUpdate || !lead)
+            return;
+        prevUpdate = timestamp;
+        /**
+         * Merge each component's latest values into our crossfaded state
+         * before crossfading.
+         */
+        var latestLeadValues = lead.getLatestValues();
+        Object.assign(leadState, latestLeadValues);
+        var latestFollowValues = follow
+            ? follow.getLatestValues()
+            : options.prevValues;
+        Object.assign(followState, latestFollowValues);
+        var p = progress.get();
+        /**
+         * Crossfade the opacity between the two components. This will result
+         * in a different opacity for each component.
+         */
+        var leadTargetOpacity = (_a = latestLeadValues.opacity) !== null && _a !== void 0 ? _a : 1;
+        var followTargetOpacity = (_b = latestFollowValues === null || latestFollowValues === void 0 ? void 0 : latestFollowValues.opacity) !== null && _b !== void 0 ? _b : 1;
+        if (options.crossfadeOpacity && follow) {
+            leadState.opacity = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(0, leadTargetOpacity, easeCrossfadeIn(p));
+            followState.opacity = options.preserveFollowOpacity
+                ? followTargetOpacity
+                : (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(followTargetOpacity, 0, easeCrossfadeOut(p));
         }
+        else if (!follow) {
+            leadState.opacity = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(followTargetOpacity, leadTargetOpacity, p);
+        }
+        mixValues(leadState, followState, latestLeadValues, latestFollowValues || {}, Boolean(follow), p);
     }
-    // If the lead has changed and the previous lead still exists in the
-    // stack, set it to the previous lead. This allows us to differentiate between
-    // a, b, c(exit) -> a, b(exit), c(exit)
-    // and
-    // a, b(exit), c -> a, b(exit), c(exit)
-    if (lead !== prevLead &&
-        !lastIsPresent &&
-        follow === prevFollow &&
-        stack.find(function (stackChild) { return stackChild === prevLead; })) {
-        lead = prevLead;
-    }
-    return [lead, follow];
+    return {
+        isActive: function () {
+            return leadState &&
+                (isActive || (0,framesync__WEBPACK_IMPORTED_MODULE_0__.getFrameData)().timestamp === finalCrossfadeFrame);
+        },
+        fromLead: function (transition) {
+            return startCrossfadeAnimation(0, transition);
+        },
+        toLead: function (transition) {
+            progress.set(options.follow ? 1 - progress.get() : 0);
+            return startCrossfadeAnimation(1, transition);
+        },
+        reset: function () { return progress.set(1); },
+        stop: function () { return progress.stop(); },
+        getCrossfadeState: function (element) {
+            updateCrossfade();
+            return element === options.lead ? leadState : followState;
+        },
+        setOptions: function (newOptions) {
+            options = newOptions;
+            leadState = {};
+            followState = {};
+        },
+        getLatestValues: function () {
+            return leadState;
+        },
+    };
 }
-var LayoutStack = /** @class */ (function () {
-    function LayoutStack() {
-        this.order = [];
-        // Track whether we've ever had a child
-        this.hasChildren = false;
+var easeCrossfadeIn = compress(0, 0.5, popmotion__WEBPACK_IMPORTED_MODULE_4__.circOut);
+var easeCrossfadeOut = compress(0.5, 0.95, popmotion__WEBPACK_IMPORTED_MODULE_4__.linear);
+function compress(min, max, easing) {
+    return function (p) {
+        // Could replace ifs with clamp
+        if (p < min)
+            return 0;
+        if (p > max)
+            return 1;
+        return easing((0,popmotion__WEBPACK_IMPORTED_MODULE_4__.progress)(min, max, p));
+    };
+}
+var borders = ["TopLeft", "TopRight", "BottomLeft", "BottomRight"];
+var numBorders = borders.length;
+function mixValues(leadState, followState, latestLeadValues, latestFollowValues, hasFollowElement, p) {
+    /**
+     * Mix border radius
+     */
+    for (var i = 0; i < numBorders; i++) {
+        var borderLabel = "border" + borders[i] + "Radius";
+        var followRadius = getRadius(latestFollowValues, borderLabel);
+        var leadRadius = getRadius(latestLeadValues, borderLabel);
+        /**
+         * Currently we're only crossfading between numerical border radius.
+         * It would be possible to crossfade between percentages for a little
+         * extra bundle size.
+         */
+        if (typeof followRadius === "number" &&
+            typeof leadRadius === "number") {
+            var radius = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(followRadius, leadRadius, p);
+            leadState[borderLabel] = followState[borderLabel] = radius;
+        }
     }
-    LayoutStack.prototype.add = function (child) {
+    /**
+     * Mix rotation
+     */
+    if (latestFollowValues.rotate || latestLeadValues.rotate) {
+        var rotate = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mix)(latestFollowValues.rotate || 0, latestLeadValues.rotate || 0, p);
+        leadState.rotate = followState.rotate = rotate;
+    }
+    /**
+     * We only want to mix the background color if there's a follow element
+     * that we're not crossfading opacity between. For instance with switch
+     * AnimateSharedLayout animations, this helps the illusion of a continuous
+     * element being animated but also cuts down on the number of paints triggered
+     * for elements where opacity is doing that work for us.
+     */
+    if (!hasFollowElement &&
+        latestLeadValues.backgroundColor &&
+        latestFollowValues.backgroundColor) {
+        /**
+         * This isn't ideal performance-wise as mixColor is creating a new function every frame.
+         * We could probably create a mixer that runs at the start of the animation but
+         * the idea behind the crossfader is that it runs dynamically between two potentially
+         * changing targets (ie opacity or borderRadius may be animating independently via variants)
+         */
+        leadState.backgroundColor = followState.backgroundColor = (0,popmotion__WEBPACK_IMPORTED_MODULE_4__.mixColor)(latestFollowValues.backgroundColor, latestLeadValues.backgroundColor)(p);
+    }
+}
+function getRadius(values, radiusName) {
+    var _a, _b;
+    return (_b = (_a = values[radiusName]) !== null && _a !== void 0 ? _a : values.borderRadius) !== null && _b !== void 0 ? _b : 0;
+}
+
+function layoutStack() {
+    var stack = new Set();
+    var state = { leadIsExiting: false };
+    var prevState = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, state);
+    var prevValues;
+    var prevViewportBox;
+    var prevDragCursor;
+    var crossfader = createCrossfader();
+    var needsCrossfadeAnimation = false;
+    function getFollowViewportBox() {
+        return state.follow ? state.follow.prevViewportBox : prevViewportBox;
+    }
+    function getFollowLayout() {
         var _a;
-        this.order.push(child);
-        // Load previous values from snapshot into this child
-        // TODO Neaten up
-        // TODO Double check when reimplementing move
-        // TODO Add isDragging status and
-        if (this.snapshot) {
-            child.prevSnapshot = this.snapshot;
-            // TODO Remove in favour of above
-            child.prevViewportBox = this.snapshot.boundingBox;
-            var latest = this.snapshot.latestMotionValues;
-            for (var key in latest) {
-                if (!child.hasValue(key)) {
-                    child.addValue(key, motionValue(latest[key]));
+        return (_a = state.follow) === null || _a === void 0 ? void 0 : _a.getLayoutState().layout;
+    }
+    return {
+        add: function (element) {
+            element.setCrossfader(crossfader);
+            stack.add(element);
+            /**
+             * Hydrate new element with previous drag position if we have one
+             */
+            if (prevDragCursor)
+                element.prevDragCursor = prevDragCursor;
+            if (!state.lead)
+                state.lead = element;
+        },
+        remove: function (element) {
+            stack.delete(element);
+        },
+        getLead: function () { return state.lead; },
+        updateSnapshot: function () {
+            if (!state.lead)
+                return;
+            prevValues = crossfader.isActive()
+                ? crossfader.getLatestValues()
+                : state.lead.getLatestValues();
+            prevViewportBox = state.lead.prevViewportBox;
+            var dragControls = elementDragControls.get(state.lead);
+            if (dragControls && dragControls.isDragging) {
+                prevDragCursor = dragControls.cursorProgress;
+            }
+        },
+        clearSnapshot: function () {
+            prevDragCursor = prevViewportBox = undefined;
+        },
+        updateLeadAndFollow: function () {
+            var _a;
+            prevState = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, state);
+            var lead;
+            var follow;
+            var order = Array.from(stack);
+            for (var i = order.length; i--; i >= 0) {
+                var element = order[i];
+                if (lead)
+                    follow !== null && follow !== void 0 ? follow : (follow = element);
+                lead !== null && lead !== void 0 ? lead : (lead = element);
+                if (lead && follow)
+                    break;
+            }
+            state.lead = lead;
+            state.follow = follow;
+            state.leadIsExiting = ((_a = state.lead) === null || _a === void 0 ? void 0 : _a.presence) === Presence.Exiting;
+            crossfader.setOptions({
+                lead: lead,
+                follow: follow,
+                prevValues: prevValues,
+                crossfadeOpacity: (follow === null || follow === void 0 ? void 0 : follow.isPresenceRoot) || (lead === null || lead === void 0 ? void 0 : lead.isPresenceRoot),
+            });
+            if (prevState.lead !== state.lead ||
+                prevState.leadIsExiting !== state.leadIsExiting) {
+                needsCrossfadeAnimation = true;
+            }
+        },
+        animate: function (child, shouldCrossfade) {
+            if (shouldCrossfade === void 0) { shouldCrossfade = false; }
+            if (child === state.lead) {
+                if (shouldCrossfade) {
+                    /**
+                     * Point a lead to itself in case it was previously pointing
+                     * to a different visual element
+                     */
+                    child.pointTo(state.lead);
                 }
                 else {
-                    (_a = child.getValue(key)) === null || _a === void 0 ? void 0 : _a.set(latest[key]);
+                    child.setVisibility(true);
+                }
+                var config = {};
+                if (child.presence === Presence.Entering) {
+                    config.originBox = getFollowViewportBox();
+                }
+                else if (child.presence === Presence.Exiting) {
+                    config.targetBox = getFollowLayout();
+                }
+                if (needsCrossfadeAnimation) {
+                    needsCrossfadeAnimation = false;
+                    var transition = child.getDefaultTransition();
+                    child.presence === Presence.Entering
+                        ? crossfader.toLead(transition)
+                        : crossfader.fromLead(transition);
+                }
+                child.notifyLayoutReady(config);
+            }
+            else {
+                if (shouldCrossfade) {
+                    state.lead && child.pointTo(state.lead);
+                }
+                else {
+                    child.setVisibility(false);
                 }
             }
-        }
-        this.hasChildren = true;
+        },
     };
-    LayoutStack.prototype.remove = function (child) {
-        var index = this.order.findIndex(function (stackChild) { return child === stackChild; });
-        if (index !== -1)
-            this.order.splice(index, 1);
-    };
-    LayoutStack.prototype.updateLeadAndFollow = function () {
-        this.prevLead = this.lead;
-        this.prevFollow = this.follow;
-        var _a = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)(findLeadAndFollow(this.order, [
-            this.lead,
-            this.follow,
-        ]), 2), lead = _a[0], follow = _a[1];
-        this.lead = lead;
-        this.follow = follow;
-    };
-    LayoutStack.prototype.updateSnapshot = function () {
-        if (!this.lead)
-            return;
-        var snapshot = {
-            boundingBox: this.lead.prevViewportBox,
-            latestMotionValues: {},
-        };
-        this.lead.forEachValue(function (value, key) {
-            var latest = value.get();
-            if (!isTransformProp(latest)) {
-                snapshot.latestMotionValues[key] = latest;
-            }
-        });
-        var dragControls = elementDragControls.get(this.lead);
-        if (dragControls && dragControls.isDragging) {
-            snapshot.isDragging = true;
-            snapshot.cursorProgress = dragControls.cursorProgress;
-        }
-        this.snapshot = snapshot;
-    };
-    LayoutStack.prototype.isLeadPresent = function () {
-        var _a;
-        return this.lead && ((_a = this.lead) === null || _a === void 0 ? void 0 : _a.presence) !== Presence.Exiting;
-    };
-    LayoutStack.prototype.getFollowOrigin = function () {
-        var _a;
-        return this.follow
-            ? this.follow.prevViewportBox
-            : (_a = this.snapshot) === null || _a === void 0 ? void 0 : _a.boundingBox;
-    };
-    LayoutStack.prototype.getFollowTarget = function () {
-        var _a;
-        return (_a = this.follow) === null || _a === void 0 ? void 0 : _a.box;
-    };
-    LayoutStack.prototype.getLeadOrigin = function () {
-        var _a;
-        return (_a = this.lead) === null || _a === void 0 ? void 0 : _a.prevViewportBox;
-    };
-    LayoutStack.prototype.getLeadTarget = function () {
-        var _a;
-        return (_a = this.lead) === null || _a === void 0 ? void 0 : _a.box;
-    };
-    LayoutStack.prototype.getLeadTransition = function () {
-        var _a;
-        return (_a = this.lead) === null || _a === void 0 ? void 0 : _a.config.transition;
-    };
-    return LayoutStack;
-}());
+}
 
 function resetRotate(child) {
     // If there's no detected rotation values, we can early return without a forced render.
@@ -14324,22 +14388,22 @@ function resetRotate(child) {
         var key = "rotate" + axis;
         // If this rotation doesn't exist as a motion value, then we don't
         // need to reset it
-        if (!child.hasValue(key) || child.latest[key] === 0)
+        if (!child.hasValue(key) || child.getStaticValue(key) === 0)
             continue;
         hasRotate = true;
         // Record the rotation and then temporarily set it to 0
-        resetValues[key] = child.latest[key];
-        child.latest[key] = 0;
+        resetValues[key] = child.getStaticValue(key);
+        child.setStaticValue(key, 0);
     }
     // If there's no rotation values, we don't need to do any more.
     if (!hasRotate)
         return;
     // Force a render of this element to apply the transform with all rotations
     // set to 0.
-    child.render();
+    child.syncRender();
     // Put back all the values we reset
     for (var key in resetValues) {
-        child.latest[key] = resetValues[key];
+        child.setStaticValue(key, resetValues[key]);
     }
     // Schedule a render for the next frame. This ensures we won't visually
     // see the element with the reset rotate value applied.
@@ -14390,7 +14454,6 @@ var AnimateSharedLayout = /** @class */ (function (_super) {
     }
     AnimateSharedLayout.prototype.componentDidMount = function () {
         this.hasMounted = true;
-        this.updateStacks();
     };
     AnimateSharedLayout.prototype.componentDidUpdate = function () {
         this.startLayoutAnimation();
@@ -14421,27 +14484,22 @@ var AnimateSharedLayout = /** @class */ (function (_super) {
                         : Presence.Present;
             }
         });
-        /**
-         * In every layoutId stack, nominate a component to lead the animation and another
-         * to follow
-         */
         this.updateStacks();
-        /**
-         * Decide which animation to use between shared layoutId components
-         */
-        var createAnimation = type === "crossfade"
-            ? createCrossfadeAnimation
-            : createSwitchAnimation;
         /**
          * Create a handler which we can use to flush the children animations
          */
         var handler = {
-            measureLayout: function (child) { return child.measureLayout(); },
+            measureLayout: function (child) { return child.updateLayoutMeasurement(); },
             layoutReady: function (child) {
-                var layoutId = child.layoutId;
-                child.layoutReady(createAnimation(child, _this.getStack(layoutId)));
+                if (child.getLayoutId() !== undefined) {
+                    var stack = _this.getStack(child);
+                    stack.animate(child, type === "crossfade");
+                }
+                else {
+                    child.notifyLayoutReady();
+                }
             },
-            parent: this.context.visualElement,
+            parent: this.context,
         };
         /**
          * Shared layout animations can be used without the AnimateSharedLayout wrapping component.
@@ -14455,7 +14513,7 @@ var AnimateSharedLayout = /** @class */ (function (_super) {
         /**
          * Clear snapshots so subsequent rerenders don't retain memory of outgoing components
          */
-        this.stacks.forEach(function (stack) { return (stack.snapshot = undefined); });
+        this.stacks.forEach(function (stack) { return stack.clearSnapshot(); });
     };
     AnimateSharedLayout.prototype.updateStacks = function () {
         this.stacks.forEach(function (stack) { return stack.updateLeadAndFollow(); });
@@ -14475,11 +14533,14 @@ var AnimateSharedLayout = /** @class */ (function (_super) {
         /**
          * Read: Snapshot children
          */
-        this.children.forEach(function (child) { return child.snapshotBoundingBox(); });
+        this.children.forEach(function (child) { return child.snapshotViewportBox(); });
         /**
          * Every child keeps a local snapshot, but we also want to record
          * snapshots of the visible children as, if they're are being removed
          * in this render, we can still access them.
+         *
+         * TODO: What would be better here is doing a single loop where we
+         * only snapshotViewportBoxes of undefined layoutIds and then one for each stack
          */
         this.stacks.forEach(function (stack) { return stack.updateSnapshot(); });
         /**
@@ -14501,22 +14562,23 @@ var AnimateSharedLayout = /** @class */ (function (_super) {
         this.removeFromStack(child);
     };
     AnimateSharedLayout.prototype.addToStack = function (child) {
-        var stack = this.getStack(child.layoutId);
+        var stack = this.getStack(child);
         stack === null || stack === void 0 ? void 0 : stack.add(child);
     };
     AnimateSharedLayout.prototype.removeFromStack = function (child) {
-        var stack = this.getStack(child.layoutId);
+        var stack = this.getStack(child);
         stack === null || stack === void 0 ? void 0 : stack.remove(child);
     };
     /**
      * Return a stack of animate children based on the provided layoutId.
      * Will create a stack if none currently exists with that layoutId.
      */
-    AnimateSharedLayout.prototype.getStack = function (id) {
+    AnimateSharedLayout.prototype.getStack = function (child) {
+        var id = child.getLayoutId();
         if (id === undefined)
             return;
         // Create stack if it doesn't already exist
-        !this.stacks.has(id) && this.stacks.set(id, new LayoutStack());
+        !this.stacks.has(id) && this.stacks.set(id, layoutStack());
         return this.stacks.get(id);
     };
     AnimateSharedLayout.prototype.render = function () {
@@ -14865,6 +14927,9 @@ function addEventListeners() {
  * - `scrollXProgress` — Horizontal scroll progress between `0` and `1`.
  * - `scrollYProgress` — Vertical scroll progress between `0` and `1`.
  *
+ * **Warning:** Setting `body` or `html` to `height: 100%` or similar will break the `Progress`
+ * values as this breaks the browser's capability to accurately measure the page length.
+ *
  * @library
  *
  * ```jsx
@@ -15009,48 +15074,9 @@ function useReducedMotion() {
  * @public
  */
 function useAnimation() {
-    var animationControls = useConstant(function () { return new AnimationControls(); });
-    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
-        animationControls.mount();
-        return function () { return animationControls.unmount(); };
-    }, []);
-    return animationControls;
-}
-
-/**
- * Animate a single value or a `MotionValue`.
- *
- * The first argument is either a `MotionValue` to animate, or an initial animation value.
- *
- * The second is either a value to animate to, or an array of keyframes to animate through.
- *
- * The third argument can be either tween or spring options, and optional lifecycle methods: `onUpdate`, `onPlay`, `onComplete`, `onRepeat` and `onStop`.
- *
- * Returns `PlaybackControls`, currently just a `stop` method.
- *
- * ```javascript
- * const x = useMotionValue(0)
- *
- * useEffect(() => {
- *   const controls = animate(x, 100, {
- *     type: "spring",
- *     stiffness: 2000,
- *     onComplete: v => {}
- *   })
- *
- *   return controls.stop
- * })
- * ```
- *
- * @public
- */
-function animate(from, to, transition) {
-    if (transition === void 0) { transition = {}; }
-    var value = isMotionValue(from) ? from : motionValue(from);
-    startAnimation("", value, to, transition);
-    return {
-        stop: function () { return value.stop(); },
-    };
+    var controls = useConstant(animationControls);
+    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(controls.mount, []);
+    return controls;
 }
 
 /**
@@ -15249,64 +15275,27 @@ function useDragControls() {
     return useConstant(createDragControls);
 }
 
-/**
- * Uses the ref that is passed in, or creates a new one
- * @param external - External ref
- * @internal
- */
-function useExternalRef(externalRef) {
-    // We're conditionally calling `useRef` here which is sort of naughty as hooks
-    // shouldn't be called conditionally. However, Framer Motion will break if this
-    // condition changes anyway. It might be possible to use an invariant here to
-    // make it explicit, but I expect changing `ref` is not normal behaviour.
-    var ref = !externalRef || typeof externalRef === "function"
-        ? (0,react__WEBPACK_IMPORTED_MODULE_2__.useRef)(null)
-        : externalRef;
-    // Handle `ref` functions. Again, calling the hook conditionally is kind of naughty
-    // but `ref` types changing between renders would break Motion anyway. If we receive
-    // bug reports about this, we should track the provided ref and throw an invariant
-    // rather than move the conditional to inside the useEffect as this will be fired
-    // for every Frame component within Framer.
-    if (externalRef && typeof externalRef === "function") {
-        (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
-            externalRef(ref.current);
-            return function () { return externalRef(null); };
-        }, []);
-    }
-    return ref;
-}
-
-/**
- * This is just a very basic VisualElement, more of a hack to keep supporting useAnimatedState with
- * the latest APIs.
- */
-var StateVisualElement = /** @class */ (function (_super) {
-    (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__extends)(StateVisualElement, _super);
-    function StateVisualElement() {
-        var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this.initialState = {};
-        return _this;
-    }
-    StateVisualElement.prototype.updateLayoutDelta = function () { };
-    StateVisualElement.prototype.build = function () { };
-    StateVisualElement.prototype.clean = function () { };
-    StateVisualElement.prototype.makeTargetAnimatable = function (_a) {
+var stateVisualElement = visualElement({
+    createRenderState: function () { return ({}); },
+    build: function () { },
+    measureViewportBox: axisBox,
+    resetTransform: function () { },
+    restoreTransform: function () { },
+    removeValueFromMutableState: function () { },
+    render: function () { },
+    scrapeMotionValuesFromProps: function () {
+        return {};
+    },
+    readValueFromInstance: function (_state, key, options) {
+        return options.initialState[key] || 0;
+    },
+    makeTargetAnimatable: function (element, _a) {
         var transition = _a.transition, transitionEnd = _a.transitionEnd, target = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__rest)(_a, ["transition", "transitionEnd"]);
-        var origin = getOrigin(target, transition || {}, this);
-        checkTargetForNewValues(this, target, origin);
+        var origin = getOrigin(target, transition || {}, element);
+        checkTargetForNewValues(element, target, origin);
         return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({ transition: transition, transitionEnd: transitionEnd }, target);
-    };
-    StateVisualElement.prototype.getBoundingBox = function () {
-        return { x: { min: 0, max: 0 }, y: { min: 0, max: 0 } };
-    };
-    StateVisualElement.prototype.readNativeValue = function (key) {
-        return this.initialState[key] || 0;
-    };
-    StateVisualElement.prototype.render = function () {
-        this.build();
-    };
-    return StateVisualElement;
-}(VisualElement));
+    },
+});
 /**
  * This is not an officially supported API and may be removed
  * on any version.
@@ -15314,17 +15303,20 @@ var StateVisualElement = /** @class */ (function (_super) {
  */
 function useAnimatedState(initialState) {
     var _a = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__read)((0,react__WEBPACK_IMPORTED_MODULE_2__.useState)(initialState), 2), animationState = _a[0], setAnimationState = _a[1];
-    var visualElement = useConstant(function () { return new StateVisualElement(); });
-    visualElement.updateConfig({
-        onUpdate: function (v) { return setAnimationState((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, v)); },
+    var element = useConstant(function () {
+        return stateVisualElement({ props: {} }, { initialState: initialState });
     });
-    visualElement.initialState = initialState;
     (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
-        visualElement.mount({});
-        return function () { return visualElement.unmount(); };
+        element.ref({});
+        return function () { return element.ref(null); };
     }, []);
+    (0,react__WEBPACK_IMPORTED_MODULE_2__.useEffect)(function () {
+        element.setProps({
+            onUpdate: function (v) { return setAnimationState((0,tslib__WEBPACK_IMPORTED_MODULE_3__.__assign)({}, v)); },
+        });
+    });
     var startAnimation = useConstant(function () { return function (animationDefinition) {
-        return animateVisualElement(visualElement, animationDefinition);
+        return animateVisualElement(element, animationDefinition);
     }; });
     return [animationState, startAnimation];
 }

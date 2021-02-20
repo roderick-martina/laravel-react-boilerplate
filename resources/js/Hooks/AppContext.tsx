@@ -1,8 +1,8 @@
 import * as React from 'react'
 
 interface IDefaultValue {
-    mobileNavOpen: Boolean
-    handleMobileNavToggle: (event: React.MouseEvent<HTMLButtonElement>) => void
+    mobileNavOpen: boolean;
+    handleMobileNavToggle: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 const defaultValue = null

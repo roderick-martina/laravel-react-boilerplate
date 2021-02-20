@@ -1,12 +1,22 @@
 import React from 'react'
-
+interface IErrors {
+    [key: string]: string
+}
 interface IProps {
     title: string;
-    errors: [string]
+    errors: IErrors
 }
 
 const ErrorBanner = ({title, errors}: IProps) => {
-    if (errors !== undefined) {
+    const hasErrors =  Object.keys(errors).length > 0
+    const resolvedErrors: string[] = []
+    if(hasErrors) {
+        const errorKeys =  Object.keys(errors)
+        errorKeys.forEach((errorKey) => {
+           Object.values(errors[errorKey]).forEach(error => resolvedErrors.push(error))
+        })
+    }
+    if (hasErrors) {
         const tmpErrors = Object.values(errors)
         return (
             <div className="rounded-md bg-red-50 p-4 my-4">
@@ -25,7 +35,7 @@ const ErrorBanner = ({title, errors}: IProps) => {
                         </h3>
                         <div className="mt-2 text-sm text-red-700">
                             <ul className="list-disc pl-5 space-y-1">
-                                {tmpErrors.map((error, index) => (
+                                {resolvedErrors.map((error, index) => (
                                     <li key={`${error}-${index}`}>{error}</li>
                                 ))}
                             </ul>

@@ -43,7 +43,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
         }
 
         return back()->with('notification', [
-            'title' => 'profile is updated.',
+            'title' => 'profile updated.',
         ]);
     }
 

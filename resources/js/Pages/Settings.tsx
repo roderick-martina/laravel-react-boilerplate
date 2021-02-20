@@ -12,26 +12,32 @@ interface IProfile {
     first_name: string;
     last_name: string;
     email: string;
-    '_method': string;
 }
+
+interface IPassword {
+    current_password: string;
+    password: string;
+    password_confirmation: string;
+}
+
 const Settings = ({route_name, auth, errors}: IDefaultProps) => {
     const profileHeading = 'Personal Information'
+    const passwordHeading = 'Update Password'
+    const passwordSubText = 'Ensure your account is using a long, random password to stay secure'
 
     const [profileValues, setProfileValues] = React.useState<IProfile>({
         first_name: auth.user.first_name,
         last_name: auth.user.last_name,
         email: auth.user.email,
-        '_method': 'PUT',
     })
 
-    const [passwordValues, setPasswordValues] = React.useState({
+    const [passwordValues, setPasswordValues] = React.useState<IPassword>({
         current_password: '',
         password: '',
         password_confirmation: '',
-        '_method': 'PUT',
     })
 
-    const handleChange = (e :React.ChangeEvent<HTMLInputElement>, setValues: React.Dispatch<SetStateAction<any>>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>, setValues: React.Dispatch<SetStateAction<any>>) => {
         const key = e.target.id;
         const value = e.target.value
         setValues((values: object) => ({
@@ -40,23 +46,39 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
         }))
     }
 
-    const handleProfileChange = (e :React.ChangeEvent<HTMLInputElement>) => {
+    const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         handleChange(e, setProfileValues)
+    }
+
+    const clearPasswordValues = () => {
+        setPasswordValues({
+            current_password: '',
+            password: '',
+            password_confirmation: ''
+        })
     }
 
     const profileSubmit = (e: React.ChangeEvent<HTMLFormElement>) => {
         e.preventDefault()
-        return Inertia.post(`user/profile-information`, profileValues)
+        return Inertia.put(`user/profile-information`, profileValues,)
     }
-    const profileErrorBag = errors !== null && errors.hasOwnProperty('updateProfileInformation') ? errors.updateProfileInformation : {}
-    const passwordErrorBag = errors !== null && errors.hasOwnProperty('updatePassword') ? errors.updatePassword : {}
+
+    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        handleChange(e, setPasswordValues)
+    }
+    const handlePasswordSubmit = (e: React.ChangeEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        return Inertia.put(`user/password`, passwordValues, {
+            onSuccess: () => clearPasswordValues(),
+            onError: () => clearPasswordValues()
+        })
+    }
 
     return (
         <NestedLayout name={auth.user.name} route_name={route_name}>
-            <h1 className="text-lg leading-6 font-medium text-cool-gray-900">Settings</h1>
-            <ErrorBanner title={`There were errors while changing your profile settings`} errors={errors.updateProfileInformation} />
+            <ErrorBanner title={`There were errors while changing your profile settings`} errors={errors}/>
             <div className="py-4">
-                <FormSection heading={'Personal Information'} onSubmit={profileSubmit}>
+                <FormSection heading={'Profile Information'} onSubmit={profileSubmit}>
                     <div className="grid grid-cols-6 gap-6">
                         <div className="col-span-6 sm:col-span-3">
                             <FormInput
@@ -64,7 +86,6 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                 label={'First name'}
                                 value={profileValues.first_name}
                                 onChange={handleProfileChange}
-                                errors={profileErrorBag}
                             />
                         </div>
 
@@ -74,7 +95,6 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                 label={'Last name'}
                                 value={profileValues.last_name}
                                 onChange={handleProfileChange}
-                                errors={profileErrorBag}
                             />
                         </div>
 
@@ -85,21 +105,43 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                 type={'email'}
                                 value={profileValues.email}
                                 onChange={handleProfileChange}
-                                errors={profileErrorBag}
+                            />
+                        </div>
+                    </div>
+                </FormSection>
+
+                {/* Password section*/}
+                <FormSection heading={passwordHeading} description={passwordSubText} onSubmit={handlePasswordSubmit}>
+                    <div className="grid grid-cols-6 gap-6">
+                        <div className="col-span-6 sm:col-span-5">
+                            <FormInput
+                                id={"current_password"}
+                                label={'Current Password'}
+                                type={'password'}
+                                value={passwordValues.current_password}
+                                onChange={handlePasswordChange}
                             />
                         </div>
 
-                        {/*<div className="col-span-6 sm:col-span-3">*/}
-                        {/*    <label htmlFor="language"*/}
-                        {/*           className="block text-sm font-medium leading-5 text-gray-700">Language</label>*/}
-                        {/*    <select*/}
-                        {/*        id="language"*/}
-                        {/*        className="mt-1 block form-select w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:shadow-outline-blue focus:border-blue-300 transition duration-150 ease-in-out sm:text-sm sm:leading-5"*/}
-                        {/*        disabled={true}*/}
-                        {/*    >*/}
-                        {/*        <option>English</option>*/}
-                        {/*    </select>*/}
-                        {/*</div>*/}
+                        <div className="col-span-6 sm:col-span-5">
+                            <FormInput
+                                id={"password"}
+                                label={'New Password'}
+                                type={'password'}
+                                value={passwordValues.password}
+                                onChange={handlePasswordChange}
+                            />
+                        </div>
+
+                        <div className="col-span-6 sm:col-span-5">
+                            <FormInput
+                                id={"password_confirmation"}
+                                label={'Confirm Password'}
+                                type={'password'}
+                                value={passwordValues.password_confirmation}
+                                onChange={handlePasswordChange}
+                            />
+                        </div>
                     </div>
                 </FormSection>
                 {/*<div className="border-4 border-dashed border-gray-200 rounded-lg h-96"></div>*/}
