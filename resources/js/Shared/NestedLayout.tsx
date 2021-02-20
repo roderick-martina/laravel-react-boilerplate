@@ -55,7 +55,8 @@ const NestedLayout = ({name, route_name, children}: IProps) => {
             <div className="flex-1 flex flex-col overflow-auto focus:outline-none" tabIndex={0}>
                 <Notification/>
                 <div
-                    className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
+                    // className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
+                    className="flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
                     <button
                         onClick={handleMobileNavToggle}
                         className="px-4 border-r border-cool-gray-200 text-cool-gray-400 focus:outline-none focus:bg-cool-gray-100 focus:text-cool-gray-600 lg:hidden"

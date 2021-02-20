@@ -16,7 +16,7 @@ const Layout = ({children}: Iprops) => {
         }
     }, [mobileNavOpen])
     return (
-        <div className="h-screen flex bg-gray-50 font-sans">
+        <div className="min-h-screen flex bg-gray-50 font-sans">
             <AppContextProvider value={value}>
                 {children}
             </AppContextProvider>

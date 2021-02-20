@@ -6258,6 +6258,64 @@ module.exports = function shimArrayPrototypeFind() {
 
 /***/ }),
 
+/***/ "./resources/js/Components/AppSection/index.tsx":
+/*!******************************************************!*\
+  !*** ./resources/js/Components/AppSection/index.tsx ***!
+  \******************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+
+var AppSection = function AppSection(_a) {
+  var _b = _a.heading,
+      heading = _b === void 0 ? '' : _b,
+      _c = _a.subText,
+      subText = _c === void 0 ? '' : _c,
+      children = _a.children;
+  return react_1["default"].createElement(react_1["default"].Fragment, null, react_1["default"].createElement("div", {
+    className: "mt-10 sm:mt-0"
+  }, react_1["default"].createElement("div", {
+    className: "md:grid md:grid-cols-3 md:gap-6"
+  }, react_1["default"].createElement("div", {
+    className: "md:col-span-1"
+  }, react_1["default"].createElement("div", {
+    className: "px-4 sm:px-0"
+  }, react_1["default"].createElement("h3", {
+    className: "text-lg font-medium leading-6 text-gray-900"
+  }, heading), react_1["default"].createElement("p", {
+    className: "mt-1 text-sm leading-5 text-gray-600"
+  }, subText))), react_1["default"].createElement("div", {
+    className: "mt-5 md:mt-0 md:col-span-2"
+  }, react_1["default"].createElement("div", {
+    className: "shadow overflow-hidden sm:rounded-md"
+  }, react_1["default"].createElement("div", {
+    className: "px-4 py-5 bg-white sm:p-6"
+  }, children))))), react_1["default"].createElement("div", {
+    className: "hidden sm:block"
+  }, react_1["default"].createElement("div", {
+    className: "py-5"
+  }, react_1["default"].createElement("div", {
+    className: "border-t border-gray-200"
+  }))));
+};
+
+exports.default = AppSection;
+
+/***/ }),
+
 /***/ "./resources/js/Components/ErrorBanner/index.tsx":
 /*!*******************************************************!*\
   !*** ./resources/js/Components/ErrorBanner/index.tsx ***!
@@ -6450,6 +6508,136 @@ var FormSection = function FormSection(_a) {
 };
 
 exports.default = FormSection;
+
+/***/ }),
+
+/***/ "./resources/js/Components/Modal/index.tsx":
+/*!*************************************************!*\
+  !*** ./resources/js/Components/Modal/index.tsx ***!
+  \*************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var __createBinding = this && this.__createBinding || (Object.create ? function (o, m, k, k2) {
+  if (k2 === undefined) k2 = k;
+  Object.defineProperty(o, k2, {
+    enumerable: true,
+    get: function get() {
+      return m[k];
+    }
+  });
+} : function (o, m, k, k2) {
+  if (k2 === undefined) k2 = k;
+  o[k2] = m[k];
+});
+
+var __setModuleDefault = this && this.__setModuleDefault || (Object.create ? function (o, v) {
+  Object.defineProperty(o, "default", {
+    enumerable: true,
+    value: v
+  });
+} : function (o, v) {
+  o["default"] = v;
+});
+
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) {
+    if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+  }
+
+  __setModuleDefault(result, mod);
+
+  return result;
+};
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+
+var react_2 = __webpack_require__(/*! @headlessui/react */ "./node_modules/@headlessui/react/dist/headlessui.esm.js");
+
+var react_scrolllock_1 = __importStar(__webpack_require__(/*! react-scrolllock */ "./node_modules/react-scrolllock/dist/index.js"));
+
+var Modal = function Modal(_a) {
+  var active = _a.active,
+      title = _a.title,
+      _b = _a.submitText,
+      submitText = _b === void 0 ? 'Submit' : _b,
+      handleHideModal = _a.handleHideModal,
+      children = _a.children;
+  return react_1["default"].createElement(react_1["default"].Fragment, null, react_1["default"].createElement(react_scrolllock_1["default"], {
+    isActive: active
+  }), react_1["default"].createElement(react_scrolllock_1.TouchScrollable, null, react_1["default"].createElement("div", {
+    className: (active ? 'pointer-events-auto' : 'pointer-events-none') + " fixed z-20 inset-0 overflow-y-auto"
+  }, react_1["default"].createElement("div", {
+    className: "flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+  }, react_1["default"].createElement(react_2.Transition, {
+    show: active
+  }, react_1["default"].createElement(react_2.Transition.Child, {
+    enter: "ease-out duration-300",
+    enterFrom: "opacity-0",
+    enterTo: "opacity-100",
+    leave: "ease-in duration-200",
+    leaveFrom: "opacity-100",
+    leaveTo: "opacity-0"
+  }, react_1["default"].createElement("div", {
+    className: "fixed inset-0 transition-opacity",
+    "aria-hidden": "true"
+  }, react_1["default"].createElement("div", {
+    className: "absolute inset-0 bg-gray-500 opacity-75"
+  }))), react_1["default"].createElement("span", {
+    className: "hidden sm:inline-block sm:align-middle sm:h-screen",
+    "aria-hidden": "true"
+  }, "\u200B"), react_1["default"].createElement(react_2.Transition.Child, {
+    enter: "ease-out duration-300",
+    enterFrom: "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95",
+    enterTo: "opacity-100 translate-y-0 sm:scale-100",
+    leave: "ease-in duration-200",
+    leaveFrom: "opacity-100 translate-y-0 sm:scale-100",
+    leaveTo: "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95",
+    className: "inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+  }, react_1["default"].createElement("div", {
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "modal-headline"
+  }, react_1["default"].createElement("div", {
+    className: "bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4"
+  }, react_1["default"].createElement("div", {
+    className: "sm:flex sm:items-start"
+  }, react_1["default"].createElement("div", {
+    className: "w-full mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left"
+  }, react_1["default"].createElement("h3", {
+    className: "text-lg leading-6 font-medium text-gray-900",
+    id: "modal-headline"
+  }, title), react_1["default"].createElement("div", {
+    className: "mt-2"
+  }, react_1["default"].createElement("div", {
+    className: "text-sm text-gray-500"
+  }, children))))), react_1["default"].createElement("div", {
+    className: "bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"
+  }, react_1["default"].createElement("button", {
+    type: "button",
+    className: "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-lighter focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm"
+  }, submitText), react_1["default"].createElement("button", {
+    type: "button",
+    onClick: handleHideModal,
+    className: "mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+  }, "Cancel")))))))));
+};
+
+exports.default = Modal;
 
 /***/ }),
 
@@ -7153,6 +7341,12 @@ var inertia_1 = __webpack_require__(/*! @inertiajs/inertia */ "./node_modules/@i
 
 var ErrorBanner_1 = __importDefault(__webpack_require__(/*! @/Components/ErrorBanner */ "./resources/js/Components/ErrorBanner/index.tsx"));
 
+var axios_1 = __importDefault(__webpack_require__(/*! axios */ "./node_modules/axios/index.js"));
+
+var AppSection_1 = __importDefault(__webpack_require__(/*! @/Components/AppSection */ "./resources/js/Components/AppSection/index.tsx"));
+
+var Modal_1 = __importDefault(__webpack_require__(/*! @/Components/Modal */ "./resources/js/Components/Modal/index.tsx"));
+
 var Settings = function Settings(_a) {
   var route_name = _a.route_name,
       auth = _a.auth,
@@ -7160,6 +7354,8 @@ var Settings = function Settings(_a) {
   var profileHeading = 'Personal Information';
   var passwordHeading = 'Update Password';
   var passwordSubText = 'Ensure your account is using a long, random password to stay secure';
+  var twoFaHeading = 'Two Factor Authentication';
+  var twoFaSubText = 'Add additional security to your account using two factor authentication.';
 
   var _b = React.useState({
     first_name: auth.user.first_name,
@@ -7176,6 +7372,26 @@ var Settings = function Settings(_a) {
   }),
       passwordValues = _c[0],
       setPasswordValues = _c[1];
+
+  var _d = React.useState(''),
+      qrCode = _d[0],
+      setQrCode = _d[1];
+
+  var _e = React.useState(false),
+      showRecoveryCodes = _e[0],
+      setShowRecoveryCodes = _e[1];
+
+  var _f = React.useState([]),
+      recoveryCodes = _f[0],
+      setRecoveryCodes = _f[1];
+
+  var _g = React.useState(false),
+      modalActive = _g[0],
+      setModalActive = _g[1];
+
+  var hideModal = function hideModal() {
+    setModalActive(false);
+  };
 
   var handleChange = function handleChange(e, setValues) {
     var key = e.target.id;
@@ -7220,6 +7436,49 @@ var Settings = function Settings(_a) {
     });
   };
 
+  var getQrCode = function getQrCode() {
+    axios_1["default"].get('user/two-factor-qr-code').then(function (res) {
+      return setQrCode(res.data.svg);
+    });
+  };
+
+  var getRecoveryCode = function getRecoveryCode() {
+    axios_1["default"].get('/user/two-factor-recovery-codes').then(function (res) {
+      return setRecoveryCodes(res.data);
+    });
+  };
+
+  var enableTwoFa = function enableTwoFa(e) {
+    setModalActive(true); // handleSubmit(e, `/user/two-factor-authentication`)
+    //     .then(() => {
+    //         getQrCode()
+    //         getRecoveryCode()
+    //     })
+  };
+
+  var deleteTwoFa = function deleteTwoFa() {
+    inertia_1.Inertia["delete"]('user/two-factor-authentication', {
+      onStart: function onStart() {// const message = {
+        //     title: 'Removed two factor authentication',
+        //     description: ''
+        // }
+        // setNotificationMessage(message)
+      },
+      onSuccess: function onSuccess() {// setShowSuccessNotification(true)
+      }
+    });
+  };
+
+  var regenerateRecoveryCode = function regenerateRecoveryCode(e) {
+    var message = {
+      title: 'Regenerated recovery codes',
+      description: ''
+    }; // const setNotification = () => setShowSuccessNotification(true)
+    // const setMessage = () => setNotificationMessage(message)
+    // handleSubmit(e, 'user/two-factor-recovery-codes', null, setNotification, setMessage)
+    //     .then(() => getRecoveryCode())
+  };
+
   return React.createElement(NestedLayout_1["default"], {
     name: auth.user.name,
     route_name: route_name
@@ -7229,7 +7488,7 @@ var Settings = function Settings(_a) {
   }), React.createElement("div", {
     className: "py-4"
   }, React.createElement(FormSection_1["default"], {
-    heading: 'Profile Information',
+    heading: profileHeading,
     onSubmit: profileSubmit
   }, React.createElement("div", {
     className: "grid grid-cols-6 gap-6"
@@ -7285,7 +7544,75 @@ var Settings = function Settings(_a) {
     type: 'password',
     value: passwordValues.password_confirmation,
     onChange: handlePasswordChange
-  }))))));
+  })))), React.createElement(AppSection_1["default"], {
+    heading: twoFaHeading,
+    subText: twoFaSubText
+  }, React.createElement("div", {
+    className: "grid grid-cols-6 gap-2"
+  }, React.createElement("div", {
+    className: "col-span-6 sm:col-span-5"
+  }, auth.user.two_factor_enabled ? React.createElement("h3", {
+    className: 'text-lg font-medium text-gray-900'
+  }, "You have enabled two factor authentication.") : React.createElement("h3", {
+    className: 'text-lg font-medium text-gray-900'
+  }, "You have not enabled two factor authentication.")), React.createElement("div", {
+    className: "col-span-6 sm:col-span-5 text-gray-600"
+  }, React.createElement("p", {
+    className: 'text-sm'
+  }, "When two factor authentication is enabled, you will be prompted for a secure, random token during authentication. You may retrieve this token from your phone's Google Authenticator application.")), auth.user.two_factor_enabled && React.createElement(React.Fragment, null, qrCode !== null && React.createElement("div", {
+    className: "col-span-6 sm:col-span-5 text-gray-600"
+  }, React.createElement("p", {
+    className: 'text-sm font-semibold'
+  }, "Two factor authentication is now enabled. Scan the following QR code using your phone's authenticator application.")), React.createElement("div", {
+    className: "col-span-6 sm:col-span-5 text-gray-600"
+  }, React.createElement("div", {
+    dangerouslySetInnerHTML: {
+      __html: qrCode
+    }
+  })), showRecoveryCodes && React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "col-span-6 sm:col-span-5 text-gray-600"
+  }, React.createElement("p", {
+    className: 'text-sm'
+  }, "Store these recovery codes in a secure password manager. They can be used to recover access to your account if your two factor authentication device is lost.")), React.createElement("ul", {
+    className: "col-span-6 sm:col-span-5 px-4 py-4 font-mono text-sm bg-gray-100 rounded-lg"
+  }, recoveryCodes.map(function (code) {
+    return React.createElement("li", null, code);
+  })))), React.createElement("div", {
+    className: "col-span-6 sm:col-span-5"
+  }, auth.user.two_factor_enabled ? React.createElement(React.Fragment, null, showRecoveryCodes ? React.createElement("button", {
+    type: "button",
+    className: "inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue active:text-gray-800 active:bg-gray-50 transition ease-in-out duration-150 mr-3",
+    onClick: function onClick(e) {
+      return regenerateRecoveryCode(e);
+    }
+  }, "Regenerate Recovery Codes") : React.createElement("button", {
+    type: "button",
+    className: "inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue active:text-gray-800 active:bg-gray-50 transition ease-in-out duration-150 mr-3",
+    onClick: function onClick() {
+      return setShowRecoveryCodes(true);
+    }
+  }, "Show Recovery Codes"), React.createElement("button", {
+    type: "button",
+    className: "inline-flex items-center justify-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-600 transition ease-in-out duration-150",
+    onClick: function onClick() {
+      return deleteTwoFa();
+    }
+  }, "Disable")) : React.createElement("button", {
+    onClick: enableTwoFa,
+    className: "btn"
+  }, "Enable"))))), React.createElement(Modal_1["default"], {
+    active: modalActive,
+    title: 'Password confirmation',
+    handleHideModal: hideModal
+  }, React.createElement("p", null, "For your security, please confirm your password to continue."), React.createElement("form", {
+    className: "mt-3"
+  }, React.createElement(FormInput_1["default"], {
+    id: "check_password_confirmation",
+    label: '',
+    type: 'password',
+    value: passwordValues.password,
+    onChange: handlePasswordChange
+  }))));
 };
 
 Settings.layout = function (page) {
@@ -7339,7 +7666,7 @@ var Layout = function Layout(_a) {
     };
   }, [mobileNavOpen]);
   return react_1["default"].createElement("div", {
-    className: "h-screen flex bg-gray-50 font-sans"
+    className: "min-h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {
     value: value
   }, children));
@@ -7469,7 +7796,8 @@ var NestedLayout = function NestedLayout(_a) {
     className: "flex-1 flex flex-col overflow-auto focus:outline-none",
     tabIndex: 0
   }, react_1["default"].createElement(Notification_1["default"], null), react_1["default"].createElement("div", {
-    className: "relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none"
+    // className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
+    className: "flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none"
   }, react_1["default"].createElement("button", {
     onClick: handleMobileNavToggle,
     className: "px-4 border-r border-cool-gray-200 text-cool-gray-400 focus:outline-none focus:bg-cool-gray-100 focus:text-cool-gray-600 lg:hidden",
@@ -8247,6 +8575,53 @@ module.exports = function ToPrimitive(input) {
 module.exports = function isPrimitive(value) {
 	return value === null || (typeof value !== 'function' && typeof value !== 'object');
 };
+
+
+/***/ }),
+
+/***/ "./node_modules/exenv/index.js":
+/*!*************************************!*\
+  !*** ./node_modules/exenv/index.js ***!
+  \*************************************/
+/***/ ((module, exports, __webpack_require__) => {
+
+var __WEBPACK_AMD_DEFINE_RESULT__;/*!
+  Copyright (c) 2015 Jed Watson.
+  Based on code that is Copyright 2013-2015, Facebook, Inc.
+  All rights reserved.
+*/
+/* global define */
+
+(function () {
+	'use strict';
+
+	var canUseDOM = !!(
+		typeof window !== 'undefined' &&
+		window.document &&
+		window.document.createElement
+	);
+
+	var ExecutionEnvironment = {
+
+		canUseDOM: canUseDOM,
+
+		canUseWorkers: typeof Worker !== 'undefined',
+
+		canUseEventListeners:
+			canUseDOM && !!(window.addEventListener || window.attachEvent),
+
+		canUseViewport: canUseDOM && !!window.screen
+
+	};
+
+	if (true) {
+		!(__WEBPACK_AMD_DEFINE_RESULT__ = (function () {
+			return ExecutionEnvironment;
+		}).call(exports, __webpack_require__, exports, module),
+		__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	} else {}
+
+}());
 
 
 /***/ }),
@@ -20375,6 +20750,565 @@ OutsideClickHandler.defaultProps = defaultProps;
 // eslint-disable-next-line import/no-unresolved
 module.exports = __webpack_require__(/*! ./build/OutsideClickHandler */ "./node_modules/react-outside-click-handler/build/OutsideClickHandler.js");
 
+
+/***/ }),
+
+/***/ "./node_modules/react-scrolllock/dist/ScrollLock.js":
+/*!**********************************************************!*\
+  !*** ./node_modules/react-scrolllock/dist/ScrollLock.js ***!
+  \**********************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+
+var _react2 = _interopRequireDefault(_react);
+
+var _exenv = __webpack_require__(/*! exenv */ "./node_modules/exenv/index.js");
+
+var _TouchScrollable = __webpack_require__(/*! ./TouchScrollable */ "./node_modules/react-scrolllock/dist/TouchScrollable.js");
+
+var _withLockSheet = __webpack_require__(/*! ./withLockSheet */ "./node_modules/react-scrolllock/dist/withLockSheet.js");
+
+var _withLockSheet2 = _interopRequireDefault(_withLockSheet);
+
+var _withTouchListeners = __webpack_require__(/*! ./withTouchListeners */ "./node_modules/react-scrolllock/dist/withTouchListeners.js");
+
+var _withTouchListeners2 = _interopRequireDefault(_withTouchListeners);
+
+var _utils = __webpack_require__(/*! ./utils */ "./node_modules/react-scrolllock/dist/utils.js");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var ScrollLock = function (_PureComponent) {
+  _inherits(ScrollLock, _PureComponent);
+
+  function ScrollLock() {
+    _classCallCheck(this, ScrollLock);
+
+    return _possibleConstructorReturn(this, (ScrollLock.__proto__ || Object.getPrototypeOf(ScrollLock)).apply(this, arguments));
+  }
+
+  _createClass(ScrollLock, [{
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      if (!_exenv.canUseDOM) return;
+      this.initialHeight = window.innerHeight;
+    }
+  }, {
+    key: 'componentWillUnmount',
+    value: function componentWillUnmount() {
+      var offset = window.innerHeight - this.initialHeight;
+
+      // adjust scroll if the window has been resized since the lock was engaged
+      // e.g. mobile safari dynamic chrome heights
+      if (offset) {
+        window.scrollTo(0, window.pageYOffset + offset);
+      }
+
+      // reset the initial height in case this scroll lock is used again
+      this.initialHeight = window.innerHeight;
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var children = this.props.children;
+
+
+      return children ? _react2.default.createElement(
+        _TouchScrollable.TouchScrollable,
+        null,
+        children
+      ) : null;
+    }
+  }]);
+
+  return ScrollLock;
+}(_react.PureComponent);
+
+// attach the stylesheet and inject styles on [un]mount
+
+
+var compose = (0, _utils.pipe)(_withTouchListeners2.default, _withLockSheet2.default);
+var SheetLock = compose(ScrollLock);
+
+// toggle the lock based on `isActive` prop
+var LockToggle = function LockToggle(props) {
+  return props.isActive ? _react2.default.createElement(SheetLock, props) : props.children;
+};
+
+LockToggle.defaultProps = {
+  accountForScrollbars: true,
+  children: null,
+  isActive: true
+};
+
+exports.default = LockToggle;
+
+/***/ }),
+
+/***/ "./node_modules/react-scrolllock/dist/TouchScrollable.js":
+/*!***************************************************************!*\
+  !*** ./node_modules/react-scrolllock/dist/TouchScrollable.js ***!
+  \***************************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.TouchScrollable = undefined;
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+
+var _exenv = __webpack_require__(/*! exenv */ "./node_modules/exenv/index.js");
+
+var _utils = __webpack_require__(/*! ./utils */ "./node_modules/react-scrolllock/dist/utils.js");
+
+function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var TouchScrollable = exports.TouchScrollable = function (_PureComponent) {
+  _inherits(TouchScrollable, _PureComponent);
+
+  function TouchScrollable() {
+    var _ref;
+
+    var _temp, _this, _ret;
+
+    _classCallCheck(this, TouchScrollable);
+
+    for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+
+    return _ret = (_temp = (_this = _possibleConstructorReturn(this, (_ref = TouchScrollable.__proto__ || Object.getPrototypeOf(TouchScrollable)).call.apply(_ref, [this].concat(args))), _this), _this.getScrollableArea = function (ref) {
+      _this.scrollableArea = ref;
+    }, _temp), _possibleConstructorReturn(_this, _ret);
+  }
+
+  _createClass(TouchScrollable, [{
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      if (!_exenv.canUseEventListeners) return;
+
+      this.scrollableArea.addEventListener('touchstart', _utils.preventInertiaScroll, _utils.listenerOptions);
+      this.scrollableArea.addEventListener('touchmove', _utils.allowTouchMove, _utils.listenerOptions);
+    }
+  }, {
+    key: 'componentWillUnmount',
+    value: function componentWillUnmount() {
+      if (!_exenv.canUseEventListeners) return;
+
+      this.scrollableArea.removeEventListener('touchstart', _utils.preventInertiaScroll, _utils.listenerOptions);
+      this.scrollableArea.removeEventListener('touchmove', _utils.allowTouchMove, _utils.listenerOptions);
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var _props = this.props,
+          children = _props.children,
+          rest = _objectWithoutProperties(_props, ['children']);
+
+      return typeof children === 'function' ? children(this.getScrollableArea) : (0, _react.cloneElement)(children, _extends({ ref: this.getScrollableArea }, rest));
+    }
+  }]);
+
+  return TouchScrollable;
+}(_react.PureComponent);
+
+/***/ }),
+
+/***/ "./node_modules/react-scrolllock/dist/index.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/react-scrolllock/dist/index.js ***!
+  \*****************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var _ScrollLock = __webpack_require__(/*! ./ScrollLock */ "./node_modules/react-scrolllock/dist/ScrollLock.js");
+
+Object.defineProperty(exports, "default", ({
+  enumerable: true,
+  get: function get() {
+    return _interopRequireDefault(_ScrollLock).default;
+  }
+}));
+
+var _TouchScrollable = __webpack_require__(/*! ./TouchScrollable */ "./node_modules/react-scrolllock/dist/TouchScrollable.js");
+
+Object.defineProperty(exports, "TouchScrollable", ({
+  enumerable: true,
+  get: function get() {
+    return _TouchScrollable.TouchScrollable;
+  }
+}));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/***/ }),
+
+/***/ "./node_modules/react-scrolllock/dist/utils.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/react-scrolllock/dist/utils.js ***!
+  \*****************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.pipe = exports.listenerOptions = undefined;
+exports.preventTouchMove = preventTouchMove;
+exports.allowTouchMove = allowTouchMove;
+exports.preventInertiaScroll = preventInertiaScroll;
+exports.isTouchDevice = isTouchDevice;
+exports.camelToKebab = camelToKebab;
+exports.parse = parse;
+exports.getPadding = getPadding;
+exports.getWindowHeight = getWindowHeight;
+exports.getDocumentHeight = getDocumentHeight;
+exports.makeStyleTag = makeStyleTag;
+exports.injectStyles = injectStyles;
+exports.insertStyleTag = insertStyleTag;
+
+var _exenv = __webpack_require__(/*! exenv */ "./node_modules/exenv/index.js");
+
+var listenerOptions = exports.listenerOptions = {
+  capture: false,
+  passive: false
+};
+
+// ==============================
+// Touch Helpers
+// ==============================
+
+function preventTouchMove(e) {
+  e.preventDefault();
+
+  return false;
+}
+
+function allowTouchMove(e) {
+  var target = e.currentTarget;
+
+  if (target.scrollHeight > target.clientHeight) {
+    e.stopPropagation();
+    return true;
+  }
+
+  e.preventDefault();
+  return false;
+}
+
+function preventInertiaScroll() {
+  var top = this.scrollTop;
+  var totalScroll = this.scrollHeight;
+  var currentScroll = top + this.offsetHeight;
+
+  if (top === 0) {
+    this.scrollTop = 1;
+  } else if (currentScroll === totalScroll) {
+    this.scrollTop = top - 1;
+  }
+}
+
+// `ontouchstart` check works on most browsers
+// `maxTouchPoints` works on IE10/11 and Surface
+function isTouchDevice() {
+  if (!_exenv.canUseDOM) return false;
+  return 'ontouchstart' in window || navigator.maxTouchPoints;
+}
+
+// ==============================
+// Misc.
+// ==============================
+
+function camelToKebab(str) {
+  return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+function parse(val) {
+  return isNaN(val) ? val : val + 'px';
+}
+
+// Take a list of functions and return a function that applies the list of
+// functions from left to right
+
+var pipeFns = function pipeFns(a, b) {
+  return function () {
+    return b(a.apply(undefined, arguments));
+  };
+};
+var pipe = exports.pipe = function pipe() {
+  for (var _len = arguments.length, fns = Array(_len), _key = 0; _key < _len; _key++) {
+    fns[_key] = arguments[_key];
+  }
+
+  return fns.reduce(pipeFns);
+};
+
+// ==============================
+// Document Helpers
+// ==============================
+
+function getPadding() {
+  if (!_exenv.canUseDOM) return 0;
+
+  var paddingRight = parseInt(window.getComputedStyle(document.body).paddingRight, 10);
+  var scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+  return paddingRight + scrollbarWidth;
+}
+
+function getWindowHeight() {
+  var multiplier = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+
+  if (_exenv.canUseDOM) {
+    return window.innerHeight * multiplier;
+  }
+}
+
+function getDocumentHeight() {
+  if (_exenv.canUseDOM) {
+    return document.body.clientHeight;
+  }
+}
+
+// ==============================
+// Style Sheets
+// ==============================
+
+function makeStyleTag() {
+  if (!_exenv.canUseDOM) return;
+
+  var tag = document.createElement('style');
+  tag.type = 'text/css';
+  tag.setAttribute('data-react-scrolllock', '');
+
+  return tag;
+}
+function injectStyles(tag, css) {
+  if (!_exenv.canUseDOM) return;
+
+  if (tag.styleSheet) {
+    tag.styleSheet.cssText = css;
+  } else {
+    tag.appendChild(document.createTextNode(css));
+  }
+}
+function insertStyleTag(tag) {
+  if (!_exenv.canUseDOM) return;
+
+  var head = document.head || document.getElementsByTagName('head')[0];
+
+  head.appendChild(tag);
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-scrolllock/dist/withLockSheet.js":
+/*!*************************************************************!*\
+  !*** ./node_modules/react-scrolllock/dist/withLockSheet.js ***!
+  \*************************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+exports.default = withLockSheet;
+
+var _react = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+
+var _react2 = _interopRequireDefault(_react);
+
+var _utils = __webpack_require__(/*! ./utils */ "./node_modules/react-scrolllock/dist/utils.js");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+function withLockSheet(WrappedComponent) {
+  return function (_PureComponent) {
+    _inherits(SheetProvider, _PureComponent);
+
+    function SheetProvider() {
+      var _ref;
+
+      var _temp, _this, _ret;
+
+      _classCallCheck(this, SheetProvider);
+
+      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      return _ret = (_temp = (_this = _possibleConstructorReturn(this, (_ref = SheetProvider.__proto__ || Object.getPrototypeOf(SheetProvider)).call.apply(_ref, [this].concat(args))), _this), _this.addSheet = function () {
+        var styles = _this.getStyles();
+
+        var sheet = (0, _utils.makeStyleTag)();
+        if (!sheet) return;
+
+        (0, _utils.injectStyles)(sheet, styles);
+        (0, _utils.insertStyleTag)(sheet);
+
+        _this.sheet = sheet;
+      }, _this.getStyles = function () {
+        var accountForScrollbars = _this.props.accountForScrollbars;
+
+
+        var height = (0, _utils.getDocumentHeight)();
+        var paddingRight = accountForScrollbars ? (0, _utils.getPadding)() : null;
+        var styles = 'body {\n        box-sizing: border-box !important;\n        overflow: hidden !important;\n        position: relative !important;\n        ' + (height ? 'height: ' + height + 'px !important;' : '') + '\n        ' + (paddingRight ? 'padding-right: ' + paddingRight + 'px !important;' : '') + '\n      }';
+
+        return styles;
+      }, _temp), _possibleConstructorReturn(_this, _ret);
+    }
+
+    _createClass(SheetProvider, [{
+      key: 'componentDidMount',
+      value: function componentDidMount() {
+        this.addSheet();
+      }
+    }, {
+      key: 'removeSheet',
+      value: function removeSheet() {
+        if (!this.sheet) return;
+
+        // $FlowFixMe
+        this.sheet.parentNode.removeChild(this.sheet);
+        this.sheet = null;
+      }
+    }, {
+      key: 'componentWillUnmount',
+      value: function componentWillUnmount() {
+        this.removeSheet();
+      }
+    }, {
+      key: 'render',
+      value: function render() {
+        return _react2.default.createElement(WrappedComponent, this.props);
+      }
+    }]);
+
+    return SheetProvider;
+  }(_react.PureComponent);
+}
+
+/***/ }),
+
+/***/ "./node_modules/react-scrolllock/dist/withTouchListeners.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/react-scrolllock/dist/withTouchListeners.js ***!
+  \******************************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+    value: true
+}));
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+exports.default = withTouchListeners;
+
+var _react = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+
+var _react2 = _interopRequireDefault(_react);
+
+var _exenv = __webpack_require__(/*! exenv */ "./node_modules/exenv/index.js");
+
+var _utils = __webpack_require__(/*! ./utils */ "./node_modules/react-scrolllock/dist/utils.js");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+// Mobile Safari ignores { overflow: hidden } declaration on the body,
+// so we have to prevent touchmove events via JS
+function withTouchListeners(WrappedComponent) {
+    return function (_PureComponent) {
+        _inherits(TouchProvider, _PureComponent);
+
+        function TouchProvider() {
+            _classCallCheck(this, TouchProvider);
+
+            return _possibleConstructorReturn(this, (TouchProvider.__proto__ || Object.getPrototypeOf(TouchProvider)).apply(this, arguments));
+        }
+
+        _createClass(TouchProvider, [{
+            key: 'componentDidMount',
+            value: function componentDidMount() {
+                if (!_exenv.canUseDOM || !(0, _utils.isTouchDevice)()) return;
+
+                document.addEventListener('touchmove', _utils.preventTouchMove, _utils.listenerOptions);
+            }
+        }, {
+            key: 'componentWillUnmount',
+            value: function componentWillUnmount() {
+                if (!_exenv.canUseDOM || !(0, _utils.isTouchDevice)()) return;
+
+                document.removeEventListener('touchmove', _utils.preventTouchMove, _utils.listenerOptions);
+            }
+        }, {
+            key: 'render',
+            value: function render() {
+                return _react2.default.createElement(WrappedComponent, this.props);
+            }
+        }]);
+
+        return TouchProvider;
+    }(_react.PureComponent);
+}
 
 /***/ }),
 

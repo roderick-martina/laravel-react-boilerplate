@@ -7000,7 +7000,7 @@ var Layout = function Layout(_a) {
     };
   }, [mobileNavOpen]);
   return react_1["default"].createElement("div", {
-    className: "h-screen flex bg-gray-50 font-sans"
+    className: "min-h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {
     value: value
   }, children));
@@ -7130,7 +7130,8 @@ var NestedLayout = function NestedLayout(_a) {
     className: "flex-1 flex flex-col overflow-auto focus:outline-none",
     tabIndex: 0
   }, react_1["default"].createElement(Notification_1["default"], null), react_1["default"].createElement("div", {
-    className: "relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none"
+    // className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
+    className: "flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none"
   }, react_1["default"].createElement("button", {
     onClick: handleMobileNavToggle,
     className: "px-4 border-r border-cool-gray-200 text-cool-gray-400 focus:outline-none focus:bg-cool-gray-100 focus:text-cool-gray-600 lg:hidden",

@@ -192,7 +192,7 @@ var Layout = function Layout(_a) {
     };
   }, [mobileNavOpen]);
   return react_1["default"].createElement("div", {
-    className: "h-screen flex bg-gray-50 font-sans"
+    className: "min-h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {
     value: value
   }, children));
