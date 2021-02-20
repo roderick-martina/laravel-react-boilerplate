@@ -6257,6 +6257,124 @@ module.exports = function shimArrayPrototypeFind() {
 
 /***/ }),
 
+/***/ "./resources/js/Components/Notification/index.tsx":
+/*!********************************************************!*\
+  !*** ./resources/js/Components/Notification/index.tsx ***!
+  \********************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+
+var react_2 = __webpack_require__(/*! @headlessui/react */ "./node_modules/@headlessui/react/dist/headlessui.esm.js");
+
+var inertia_react_1 = __webpack_require__(/*! @inertiajs/inertia-react */ "./node_modules/@inertiajs/inertia-react/dist/index.js");
+
+var NotificationType;
+
+(function (NotificationType) {
+  NotificationType[NotificationType["success"] = 0] = "success";
+  NotificationType[NotificationType["info"] = 1] = "info";
+})(NotificationType || (NotificationType = {}));
+
+var Notification = function Notification() {
+  // @ts-ignore
+  var notification = inertia_react_1.usePage().props.notification;
+
+  var _a = react_1["default"].useState(null),
+      state = _a[0],
+      setState = _a[1];
+
+  var _b = react_1["default"].useState(false),
+      active = _b[0],
+      setActive = _b[1];
+
+  var hideNotification = function hideNotification() {
+    setActive(false);
+  };
+
+  react_1["default"].useEffect(function () {
+    if (notification !== null) {
+      setState(notification);
+      setActive(true);
+      setTimeout(function () {
+        hideNotification();
+      }, 3000);
+    }
+  }, [notification]);
+  return react_1["default"].createElement("div", {
+    className: "z-50 fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end"
+  }, react_1["default"].createElement(react_2.Transition, {
+    show: active,
+    enter: "transform ease-out duration-300 transition",
+    enterFrom: "translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2",
+    enterTo: "translate-y-0 opacity-100 sm:translate-x-0",
+    leave: "transition ease-in duration-100",
+    leaveFrom: "opacity-100",
+    leaveTo: "opacity-0",
+    className: "w-full flex justify-end"
+  }, react_1["default"].createElement("div", {
+    className: "max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden"
+  }, react_1["default"].createElement("div", {
+    className: "p-4"
+  }, react_1["default"].createElement("div", {
+    className: "flex items-start"
+  }, react_1["default"].createElement("div", {
+    className: "flex-shrink-0"
+  }, react_1["default"].createElement("svg", {
+    className: "h-6 w-6 text-green-400",
+    xmlns: "http://www.w3.org/2000/svg",
+    fill: "none",
+    viewBox: "0 0 24 24",
+    stroke: "currentColor",
+    "aria-hidden": "true"
+  }, react_1["default"].createElement("path", {
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    strokeWidth: 2,
+    d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+  }))), react_1["default"].createElement("div", {
+    className: "ml-3 w-0 flex-1 pt-0.5"
+  }, react_1["default"].createElement("p", {
+    className: "text-sm font-medium text-gray-900"
+  }, state === null || state === void 0 ? void 0 : state.title), react_1["default"].createElement("p", {
+    className: "mt-1 text-sm text-gray-500"
+  }, state === null || state === void 0 ? void 0 : state.description)), react_1["default"].createElement("div", {
+    className: "ml-4 flex-shrink-0 flex"
+  }, react_1["default"].createElement("button", {
+    onClick: hideNotification,
+    className: "bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+  }, react_1["default"].createElement("span", {
+    className: "sr-only"
+  }, "Close"), react_1["default"].createElement("svg", {
+    className: "h-5 w-5",
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 20 20",
+    fill: "currentColor",
+    "aria-hidden": "true"
+  }, react_1["default"].createElement("path", {
+    fillRule: "evenodd",
+    d: "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z",
+    clipRule: "evenodd"
+  })))))))));
+};
+
+exports.default = Notification;
+
+/***/ }),
+
 /***/ "./resources/js/Components/Sidebar.tsx":
 /*!*********************************************!*\
   !*** ./resources/js/Components/Sidebar.tsx ***!
@@ -6881,7 +6999,7 @@ var Layout = function Layout(_a) {
     };
   }, [mobileNavOpen]);
   return react_1["default"].createElement("div", {
-    className: "h-screen flex overflow-hidden bg-cool-gray-100 font-sans"
+    className: "h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {
     value: value
   }, children));
@@ -6959,6 +7077,8 @@ var Sidebar_1 = __importDefault(__webpack_require__(/*! @/Components/Sidebar */ 
 
 var AppContext_1 = __webpack_require__(/*! @/Hooks/AppContext */ "./resources/js/Hooks/AppContext.tsx");
 
+var Notification_1 = __importDefault(__webpack_require__(/*! @/Components/Notification */ "./resources/js/Components/Notification/index.tsx"));
+
 var NestedLayout = function NestedLayout(_a) {
   var name = _a.name,
       route_name = _a.route_name,
@@ -7008,7 +7128,7 @@ var NestedLayout = function NestedLayout(_a) {
   }), react_1["default"].createElement("div", {
     className: "flex-1 flex flex-col overflow-auto focus:outline-none",
     tabIndex: 0
-  }, react_1["default"].createElement("div", {
+  }, react_1["default"].createElement(Notification_1["default"], null), react_1["default"].createElement("div", {
     className: "relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none"
   }, react_1["default"].createElement("button", {
     onClick: handleMobileNavToggle,
@@ -7102,29 +7222,26 @@ var NestedLayout = function NestedLayout(_a) {
     leave: "transition ease-in duration-75",
     leaveFrom: "transform opacity-100 scale-100",
     leaveTo: "transform opacity-0 scale-95"
-  }, function (ref) {
-    return react_1["default"].createElement("div", {
-      ref: ref,
-      className: "origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg border"
-    }, react_1["default"].createElement(react_outside_click_handler_1["default"], {
-      onOutsideClick: function onOutsideClick() {
-        return setProfileIsOpen(false);
-      }
-    }, react_1["default"].createElement("div", {
-      className: "py-1 rounded-md bg-white shadow-xs",
-      role: "menu",
-      "aria-orientation": "vertical",
-      "aria-labelledby": "user-menu"
-    }, react_1["default"].createElement(inertia_react_1.InertiaLink, {
-      href: "/settings",
-      className: "block px-4 py-2 text-sm text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150",
-      role: "menuitem"
-    }, "Settings"), react_1["default"].createElement("button", {
-      className: "w-full px-4 py-2 text-sm text-left text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150",
-      role: "menuitem",
-      onClick: logout
-    }, "Logout"))));
-  }))))), react_1["default"].createElement("main", {
+  }, react_1["default"].createElement("div", {
+    className: "origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg border"
+  }, react_1["default"].createElement(react_outside_click_handler_1["default"], {
+    onOutsideClick: function onOutsideClick() {
+      return setProfileIsOpen(false);
+    }
+  }, react_1["default"].createElement("div", {
+    className: "py-1 rounded-md bg-white shadow-xs",
+    role: "menu",
+    "aria-orientation": "vertical",
+    "aria-labelledby": "user-menu"
+  }, react_1["default"].createElement(inertia_react_1.InertiaLink, {
+    href: "/settings",
+    className: "block px-4 py-2 text-sm text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150",
+    role: "menuitem"
+  }, "Settings"), react_1["default"].createElement("button", {
+    className: "w-full px-4 py-2 text-sm text-left text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150",
+    role: "menuitem",
+    onClick: logout
+  }, "Logout"))))))))), react_1["default"].createElement("main", {
     className: "flex flex-col flex-1 relative z-0 overflow-y-auto"
   }, react_1["default"].createElement("div", {
     className: "w-full max-w-5xl mx-auto flex flex-col flex-1 px-4 sm:px-6 lg:px-8 mt-8"

@@ -6257,6 +6257,308 @@ module.exports = function shimArrayPrototypeFind() {
 
 /***/ }),
 
+/***/ "./resources/js/Components/ErrorBanner/index.tsx":
+/*!*******************************************************!*\
+  !*** ./resources/js/Components/ErrorBanner/index.tsx ***!
+  \*******************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+
+var ErrorBanner = function ErrorBanner(_a) {
+  var title = _a.title,
+      errors = _a.errors;
+
+  if (errors !== undefined) {
+    var tmpErrors = Object.values(errors);
+    return react_1["default"].createElement("div", {
+      className: "rounded-md bg-red-50 p-4 my-4"
+    }, react_1["default"].createElement("div", {
+      className: "flex"
+    }, react_1["default"].createElement("div", {
+      className: "flex-shrink-0"
+    }, react_1["default"].createElement("svg", {
+      className: "h-5 w-5 text-red-400",
+      xmlns: "http://www.w3.org/2000/svg",
+      viewBox: "0 0 20 20",
+      fill: "currentColor",
+      "aria-hidden": "true"
+    }, react_1["default"].createElement("path", {
+      fillRule: "evenodd",
+      d: "M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z",
+      clipRule: "evenodd"
+    }))), react_1["default"].createElement("div", {
+      className: "ml-3"
+    }, react_1["default"].createElement("h3", {
+      className: "text-sm font-medium text-red-800"
+    }, title), react_1["default"].createElement("div", {
+      className: "mt-2 text-sm text-red-700"
+    }, react_1["default"].createElement("ul", {
+      className: "list-disc pl-5 space-y-1"
+    }, tmpErrors.map(function (error, index) {
+      return react_1["default"].createElement("li", {
+        key: error + "-" + index
+      }, error);
+    }))))));
+  }
+
+  return null;
+};
+
+exports.default = ErrorBanner;
+
+/***/ }),
+
+/***/ "./resources/js/Components/Form/FormInput.tsx":
+/*!****************************************************!*\
+  !*** ./resources/js/Components/Form/FormInput.tsx ***!
+  \****************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var __assign = this && this.__assign || function () {
+  __assign = Object.assign || function (t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+      s = arguments[i];
+
+      for (var p in s) {
+        if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+      }
+    }
+
+    return t;
+  };
+
+  return __assign.apply(this, arguments);
+};
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+
+var FormInput = function FormInput(props) {
+  var label = props.label,
+      id = props.id;
+
+  var attribute = __assign({}, props);
+
+  return react_1["default"].createElement(react_1["default"].Fragment, null, label.length > 0 && react_1["default"].createElement("label", {
+    htmlFor: id,
+    className: "block text-sm font-medium leading-5 text-gray-700"
+  }, label), react_1["default"].createElement("input", __assign({}, attribute, {
+    className: "border-gray-300 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 mt-1 form-input block w-full py-2 px-3 border rounded-md shadow-sm transition duration-150 ease-in-out sm:text-sm sm:leading-5"
+  })));
+};
+
+exports.default = FormInput;
+
+/***/ }),
+
+/***/ "./resources/js/Components/FormSection.tsx":
+/*!*************************************************!*\
+  !*** ./resources/js/Components/FormSection.tsx ***!
+  \*************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+
+var FormSection = function FormSection(_a) {
+  var heading = _a.heading,
+      description = _a.description,
+      onSubmit = _a.onSubmit,
+      children = _a.children;
+  return react_1["default"].createElement(react_1["default"].Fragment, null, react_1["default"].createElement("div", {
+    className: "mt-10 sm:mt-0"
+  }, react_1["default"].createElement("div", {
+    className: "md:grid md:grid-cols-3 md:gap-6"
+  }, react_1["default"].createElement("div", {
+    className: "md:col-span-1"
+  }, react_1["default"].createElement("div", {
+    className: "px-4 sm:px-0"
+  }, react_1["default"].createElement("h3", {
+    className: "text-lg font-medium leading-6 text-gray-900"
+  }, heading), react_1["default"].createElement("p", {
+    className: "mt-1 text-sm leading-5 text-gray-600"
+  }, description))), react_1["default"].createElement("div", {
+    className: "mt-5 md:mt-0 md:col-span-2"
+  }, react_1["default"].createElement("form", {
+    onSubmit: onSubmit
+  }, react_1["default"].createElement("div", {
+    className: "shadow overflow-hidden sm:rounded-md"
+  }, react_1["default"].createElement("div", {
+    className: "px-4 py-5 bg-white sm:p-6"
+  }, children), react_1["default"].createElement("div", {
+    className: "px-4 py-3 bg-gray-50 text-right sm:px-6"
+  }, react_1["default"].createElement("button", {
+    type: "submit",
+    className: "btn"
+  }, "Submit"))))))), react_1["default"].createElement("div", {
+    className: "hidden sm:block"
+  }, react_1["default"].createElement("div", {
+    className: "py-5"
+  }, react_1["default"].createElement("div", {
+    className: "border-t border-gray-200"
+  }))));
+};
+
+exports.default = FormSection;
+
+/***/ }),
+
+/***/ "./resources/js/Components/Notification/index.tsx":
+/*!********************************************************!*\
+  !*** ./resources/js/Components/Notification/index.tsx ***!
+  \********************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+
+var react_2 = __webpack_require__(/*! @headlessui/react */ "./node_modules/@headlessui/react/dist/headlessui.esm.js");
+
+var inertia_react_1 = __webpack_require__(/*! @inertiajs/inertia-react */ "./node_modules/@inertiajs/inertia-react/dist/index.js");
+
+var NotificationType;
+
+(function (NotificationType) {
+  NotificationType[NotificationType["success"] = 0] = "success";
+  NotificationType[NotificationType["info"] = 1] = "info";
+})(NotificationType || (NotificationType = {}));
+
+var Notification = function Notification() {
+  // @ts-ignore
+  var notification = inertia_react_1.usePage().props.notification;
+
+  var _a = react_1["default"].useState(null),
+      state = _a[0],
+      setState = _a[1];
+
+  var _b = react_1["default"].useState(false),
+      active = _b[0],
+      setActive = _b[1];
+
+  var hideNotification = function hideNotification() {
+    setActive(false);
+  };
+
+  react_1["default"].useEffect(function () {
+    if (notification !== null) {
+      setState(notification);
+      setActive(true);
+      setTimeout(function () {
+        hideNotification();
+      }, 3000);
+    }
+  }, [notification]);
+  return react_1["default"].createElement("div", {
+    className: "z-50 fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end"
+  }, react_1["default"].createElement(react_2.Transition, {
+    show: active,
+    enter: "transform ease-out duration-300 transition",
+    enterFrom: "translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2",
+    enterTo: "translate-y-0 opacity-100 sm:translate-x-0",
+    leave: "transition ease-in duration-100",
+    leaveFrom: "opacity-100",
+    leaveTo: "opacity-0",
+    className: "w-full flex justify-end"
+  }, react_1["default"].createElement("div", {
+    className: "max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden"
+  }, react_1["default"].createElement("div", {
+    className: "p-4"
+  }, react_1["default"].createElement("div", {
+    className: "flex items-start"
+  }, react_1["default"].createElement("div", {
+    className: "flex-shrink-0"
+  }, react_1["default"].createElement("svg", {
+    className: "h-6 w-6 text-green-400",
+    xmlns: "http://www.w3.org/2000/svg",
+    fill: "none",
+    viewBox: "0 0 24 24",
+    stroke: "currentColor",
+    "aria-hidden": "true"
+  }, react_1["default"].createElement("path", {
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    strokeWidth: 2,
+    d: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+  }))), react_1["default"].createElement("div", {
+    className: "ml-3 w-0 flex-1 pt-0.5"
+  }, react_1["default"].createElement("p", {
+    className: "text-sm font-medium text-gray-900"
+  }, state === null || state === void 0 ? void 0 : state.title), react_1["default"].createElement("p", {
+    className: "mt-1 text-sm text-gray-500"
+  }, state === null || state === void 0 ? void 0 : state.description)), react_1["default"].createElement("div", {
+    className: "ml-4 flex-shrink-0 flex"
+  }, react_1["default"].createElement("button", {
+    onClick: hideNotification,
+    className: "bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+  }, react_1["default"].createElement("span", {
+    className: "sr-only"
+  }, "Close"), react_1["default"].createElement("svg", {
+    className: "h-5 w-5",
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 20 20",
+    fill: "currentColor",
+    "aria-hidden": "true"
+  }, react_1["default"].createElement("path", {
+    fillRule: "evenodd",
+    d: "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z",
+    clipRule: "evenodd"
+  })))))))));
+};
+
+exports.default = Notification;
+
+/***/ }),
+
 /***/ "./resources/js/Components/Sidebar.tsx":
 /*!*********************************************!*\
   !*** ./resources/js/Components/Sidebar.tsx ***!
@@ -6765,6 +7067,22 @@ exports.default = exports.AppContext;
 "use strict";
 
 
+var __assign = this && this.__assign || function () {
+  __assign = Object.assign || function (t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+      s = arguments[i];
+
+      for (var p in s) {
+        if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+      }
+    }
+
+    return t;
+  };
+
+  return __assign.apply(this, arguments);
+};
+
 var __createBinding = this && this.__createBinding || (Object.create ? function (o, m, k, k2) {
   if (k2 === undefined) k2 = k;
   Object.defineProperty(o, k2, {
@@ -6815,19 +7133,100 @@ var Layout_1 = __importDefault(__webpack_require__(/*! @/Shared/Layout */ "./res
 
 var NestedLayout_1 = __importDefault(__webpack_require__(/*! @/Shared/NestedLayout */ "./resources/js/Shared/NestedLayout.tsx"));
 
+var FormSection_1 = __importDefault(__webpack_require__(/*! @/Components/FormSection */ "./resources/js/Components/FormSection.tsx"));
+
+var FormInput_1 = __importDefault(__webpack_require__(/*! @/Components/Form/FormInput */ "./resources/js/Components/Form/FormInput.tsx"));
+
+var inertia_1 = __webpack_require__(/*! @inertiajs/inertia */ "./node_modules/@inertiajs/inertia/dist/index.js");
+
+var ErrorBanner_1 = __importDefault(__webpack_require__(/*! @/Components/ErrorBanner */ "./resources/js/Components/ErrorBanner/index.tsx"));
+
 var Settings = function Settings(_a) {
   var route_name = _a.route_name,
-      auth = _a.auth;
+      auth = _a.auth,
+      errors = _a.errors;
+  var profileHeading = 'Personal Information';
+
+  var _b = React.useState({
+    first_name: auth.user.first_name,
+    last_name: auth.user.last_name,
+    email: auth.user.email,
+    '_method': 'PUT'
+  }),
+      profileValues = _b[0],
+      setProfileValues = _b[1];
+
+  var _c = React.useState({
+    current_password: '',
+    password: '',
+    password_confirmation: '',
+    '_method': 'PUT'
+  }),
+      passwordValues = _c[0],
+      setPasswordValues = _c[1];
+
+  var handleChange = function handleChange(e, setValues) {
+    var key = e.target.id;
+    var value = e.target.value;
+    setValues(function (values) {
+      var _a;
+
+      return __assign(__assign({}, values), (_a = {}, _a[key] = value, _a));
+    });
+  };
+
+  var handleProfileChange = function handleProfileChange(e) {
+    handleChange(e, setProfileValues);
+  };
+
+  var profileSubmit = function profileSubmit(e) {
+    e.preventDefault();
+    return inertia_1.Inertia.post("user/profile-information", profileValues);
+  };
+
+  var profileErrorBag = errors !== null && errors.hasOwnProperty('updateProfileInformation') ? errors.updateProfileInformation : {};
+  var passwordErrorBag = errors !== null && errors.hasOwnProperty('updatePassword') ? errors.updatePassword : {};
   return React.createElement(NestedLayout_1["default"], {
     name: auth.user.name,
     route_name: route_name
   }, React.createElement("h1", {
     className: "text-lg leading-6 font-medium text-cool-gray-900"
-  }, "Settings"), React.createElement("div", {
+  }, "Settings"), React.createElement(ErrorBanner_1["default"], {
+    title: "There were errors while changing your profile settings",
+    errors: errors.updateProfileInformation
+  }), React.createElement("div", {
     className: "py-4"
+  }, React.createElement(FormSection_1["default"], {
+    heading: 'Personal Information',
+    onSubmit: profileSubmit
   }, React.createElement("div", {
-    className: "border-4 border-dashed border-gray-200 rounded-lg h-96"
-  })));
+    className: "grid grid-cols-6 gap-6"
+  }, React.createElement("div", {
+    className: "col-span-6 sm:col-span-3"
+  }, React.createElement(FormInput_1["default"], {
+    id: "first_name",
+    label: 'First name',
+    value: profileValues.first_name,
+    onChange: handleProfileChange,
+    errors: profileErrorBag
+  })), React.createElement("div", {
+    className: "col-span-6 sm:col-span-3"
+  }, React.createElement(FormInput_1["default"], {
+    id: "last_name",
+    label: 'Last name',
+    value: profileValues.last_name,
+    onChange: handleProfileChange,
+    errors: profileErrorBag
+  })), React.createElement("div", {
+    className: "col-span-6"
+  }, React.createElement(FormInput_1["default"], {
+    id: "email",
+    label: 'Email',
+    type: 'email',
+    value: profileValues.email,
+    onChange: handleProfileChange,
+    errors: profileErrorBag
+  }))))));
 };
 
 Settings.layout = function (page) {
@@ -6881,7 +7280,7 @@ var Layout = function Layout(_a) {
     };
   }, [mobileNavOpen]);
   return react_1["default"].createElement("div", {
-    className: "h-screen flex overflow-hidden bg-cool-gray-100 font-sans"
+    className: "h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {
     value: value
   }, children));
@@ -6959,6 +7358,8 @@ var Sidebar_1 = __importDefault(__webpack_require__(/*! @/Components/Sidebar */ 
 
 var AppContext_1 = __webpack_require__(/*! @/Hooks/AppContext */ "./resources/js/Hooks/AppContext.tsx");
 
+var Notification_1 = __importDefault(__webpack_require__(/*! @/Components/Notification */ "./resources/js/Components/Notification/index.tsx"));
+
 var NestedLayout = function NestedLayout(_a) {
   var name = _a.name,
       route_name = _a.route_name,
@@ -7008,7 +7409,7 @@ var NestedLayout = function NestedLayout(_a) {
   }), react_1["default"].createElement("div", {
     className: "flex-1 flex flex-col overflow-auto focus:outline-none",
     tabIndex: 0
-  }, react_1["default"].createElement("div", {
+  }, react_1["default"].createElement(Notification_1["default"], null), react_1["default"].createElement("div", {
     className: "relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none"
   }, react_1["default"].createElement("button", {
     onClick: handleMobileNavToggle,
@@ -7102,29 +7503,26 @@ var NestedLayout = function NestedLayout(_a) {
     leave: "transition ease-in duration-75",
     leaveFrom: "transform opacity-100 scale-100",
     leaveTo: "transform opacity-0 scale-95"
-  }, function (ref) {
-    return react_1["default"].createElement("div", {
-      ref: ref,
-      className: "origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg border"
-    }, react_1["default"].createElement(react_outside_click_handler_1["default"], {
-      onOutsideClick: function onOutsideClick() {
-        return setProfileIsOpen(false);
-      }
-    }, react_1["default"].createElement("div", {
-      className: "py-1 rounded-md bg-white shadow-xs",
-      role: "menu",
-      "aria-orientation": "vertical",
-      "aria-labelledby": "user-menu"
-    }, react_1["default"].createElement(inertia_react_1.InertiaLink, {
-      href: "/settings",
-      className: "block px-4 py-2 text-sm text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150",
-      role: "menuitem"
-    }, "Settings"), react_1["default"].createElement("button", {
-      className: "w-full px-4 py-2 text-sm text-left text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150",
-      role: "menuitem",
-      onClick: logout
-    }, "Logout"))));
-  }))))), react_1["default"].createElement("main", {
+  }, react_1["default"].createElement("div", {
+    className: "origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg border"
+  }, react_1["default"].createElement(react_outside_click_handler_1["default"], {
+    onOutsideClick: function onOutsideClick() {
+      return setProfileIsOpen(false);
+    }
+  }, react_1["default"].createElement("div", {
+    className: "py-1 rounded-md bg-white shadow-xs",
+    role: "menu",
+    "aria-orientation": "vertical",
+    "aria-labelledby": "user-menu"
+  }, react_1["default"].createElement(inertia_react_1.InertiaLink, {
+    href: "/settings",
+    className: "block px-4 py-2 text-sm text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150",
+    role: "menuitem"
+  }, "Settings"), react_1["default"].createElement("button", {
+    className: "w-full px-4 py-2 text-sm text-left text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150",
+    role: "menuitem",
+    onClick: logout
+  }, "Logout"))))))))), react_1["default"].createElement("main", {
     className: "flex flex-col flex-1 relative z-0 overflow-y-auto"
   }, react_1["default"].createElement("div", {
     className: "w-full max-w-5xl mx-auto flex flex-col flex-1 px-4 sm:px-6 lg:px-8 mt-8"

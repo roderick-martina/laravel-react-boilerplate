@@ -6,11 +6,12 @@ import {InertiaLink} from '@inertiajs/inertia-react'
 import axios from 'axios'
 import Sidebar from '@/Components/Sidebar'
 import {useAppContext} from "@/Hooks/AppContext";
+import Notification from "@/Components/Notification";
 
 interface IProps {
     name: string
     route_name: string
-    children: React.ReactNode
+    children: React.ReactNode,
 }
 
 const NestedLayout = ({name, route_name, children}: IProps) => {
@@ -52,6 +53,7 @@ const NestedLayout = ({name, route_name, children}: IProps) => {
                 focusOnSearch={focusOnSearch}
                 route_name={route_name}/>
             <div className="flex-1 flex flex-col overflow-auto focus:outline-none" tabIndex={0}>
+                <Notification/>
                 <div
                     className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
                     <button
@@ -124,34 +126,33 @@ const NestedLayout = ({name, route_name, children}: IProps) => {
                                     leaveFrom="transform opacity-100 scale-100"
                                     leaveTo="transform opacity-0 scale-95"
                                 >
-                                    {(ref: string | ((instance: HTMLDivElement | null) => void) | React.RefObject<HTMLDivElement> | null | undefined) => (
-                                        <div ref={ref}
-                                             className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg border">
-                                            <OutsideClickHandler
-                                                onOutsideClick={() => setProfileIsOpen(false)}
-                                            >
-                                                <div className="py-1 rounded-md bg-white shadow-xs" role="menu"
-                                                     aria-orientation="vertical" aria-labelledby="user-menu">
 
-                                                    <InertiaLink
-                                                        href="/settings"
-                                                        className="block px-4 py-2 text-sm text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150"
-                                                        role="menuitem"
-                                                    >
-                                                        Settings
-                                                    </InertiaLink>
+                                    <div
+                                        className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg border">
+                                        <OutsideClickHandler
+                                            onOutsideClick={() => setProfileIsOpen(false)}
+                                        >
+                                            <div className="py-1 rounded-md bg-white shadow-xs" role="menu"
+                                                 aria-orientation="vertical" aria-labelledby="user-menu">
 
-                                                    <button
-                                                        className="w-full px-4 py-2 text-sm text-left text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150"
-                                                        role="menuitem"
-                                                        onClick={logout}
-                                                    >
-                                                        Logout
-                                                    </button>
-                                                </div>
-                                            </OutsideClickHandler>
-                                        </div>
-                                    )}
+                                                <InertiaLink
+                                                    href="/settings"
+                                                    className="block px-4 py-2 text-sm text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150"
+                                                    role="menuitem"
+                                                >
+                                                    Settings
+                                                </InertiaLink>
+
+                                                <button
+                                                    className="w-full px-4 py-2 text-sm text-left text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150"
+                                                    role="menuitem"
+                                                    onClick={logout}
+                                                >
+                                                    Logout
+                                                </button>
+                                            </div>
+                                        </OutsideClickHandler>
+                                    </div>
                                 </Transition>
                             </div>
                         </div>

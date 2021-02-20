@@ -45,11 +45,17 @@ class HandleInertiaRequests extends Middleware
                 return [
                     'user' => Auth::user() ? [
                         'name' => Auth::user()->full_name,
+                        'first_name' => Auth::user()->first_name,
+                        'last_name' => Auth::user()->last_name,
+                        'email' => Auth::user()->email,
                         'two_factor_enabled' => !is_null(Auth::user()->two_factor_secret)
                     ] : null
                 ];
             },
             'route_name' => isset($routeName[3]) ? $routeName[3] : '',
+            'notification' => function () use ($request) {
+                return $request->session()->get('notification');
+            }
         ]);
     }
 }

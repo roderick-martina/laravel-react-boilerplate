@@ -9,16 +9,19 @@ module.exports = {
         },
         colors: {
             black: '#181818',
-            'black-light': '#333'
-        },
-        backgroundColor: {
+            'black-light': '#333',
             primary: '#07f',
             'primary-lighter': '#0295FF',
+            'primary-dark': '#04f'
         },
-        textColor: {
-            primary: '#07f',
-            'primary-lighter': '##0295FF',
-        },
+        // backgroundColor: {
+        //     primary: '#07f',
+        //     'primary-lighter': '#0295FF',
+        // },
+        // textColor: {
+        //     primary: '#07f',
+        //     'primary-lighter': '##0295FF',
+        // },
     },
   },
   variants: {
