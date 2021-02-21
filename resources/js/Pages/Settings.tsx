@@ -372,7 +372,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                         <ul
                                             className="col-span-6 sm:col-span-5 px-4 py-4 font-mono text-sm bg-gray-100 rounded-lg"
                                         >
-                                            {recoveryCodes.map((code,index) => (
+                                            {recoveryCodes.map((code, index) => (
                                                 <li key={`code-${index}`}>{code}</li>
                                             ))}
                                         </ul>
@@ -417,7 +417,8 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                     </div>
                 </AppSection>
             </div>
-            <Modal active={confirmModal.active} title={'Password confirmation'} handleHideModal={hideModal} onSubmit={submitConfirmPassword}>
+            <Modal active={confirmModal.active} title={'Password confirmation'} handleHideModal={hideModal}
+                   onSubmit={submitConfirmPassword}>
                 <p>
                     For your security, please confirm your password to continue.
                 </p>

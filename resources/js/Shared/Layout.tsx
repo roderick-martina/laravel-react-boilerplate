@@ -11,15 +11,25 @@ const Layout = ({children}: Iprops) => {
     const handleMobileNavToggle = (event: React.MouseEvent<HTMLButtonElement>) => {
         setMobileNavOpen(!mobileNavOpen)
     }
-    const [notificationState, notify] = React.useState<INotification | null>(null)
+    const [notificationState, setNotificationState] = React.useState<INotification | null>(null)
+    const [modalActive, setModalActive] = React.useState(false)
+    const notify = (data: INotification) => {
+        setNotificationState(data)
+        setModalActive(true)
+        setTimeout(() => {
+            setModalActive(false)
+        },3000)
+    }
     const value = React.useMemo(() => {
         return {
             mobileNavOpen,
             handleMobileNavToggle,
             notificationState,
-            notify
+            notify,
+            modalActive,
+            setModalActive
         }
-    }, [mobileNavOpen, notificationState])
+    }, [mobileNavOpen, notificationState, modalActive])
     return (
         <div className="min-h-screen flex bg-gray-50 font-sans">
             <AppContextProvider value={value}>

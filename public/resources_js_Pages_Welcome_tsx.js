@@ -187,16 +187,30 @@ var Layout = function Layout(_a) {
 
   var _c = react_1["default"].useState(null),
       notificationState = _c[0],
-      notify = _c[1];
+      setNotificationState = _c[1];
+
+  var _d = react_1["default"].useState(false),
+      modalActive = _d[0],
+      setModalActive = _d[1];
+
+  var notify = function notify(data) {
+    setNotificationState(data);
+    setModalActive(true);
+    setTimeout(function () {
+      setModalActive(false);
+    }, 3000);
+  };
 
   var value = react_1["default"].useMemo(function () {
     return {
       mobileNavOpen: mobileNavOpen,
       handleMobileNavToggle: handleMobileNavToggle,
       notificationState: notificationState,
-      notify: notify
+      notify: notify,
+      modalActive: modalActive,
+      setModalActive: setModalActive
     };
-  }, [mobileNavOpen, notificationState]);
+  }, [mobileNavOpen, notificationState, modalActive]);
   return react_1["default"].createElement("div", {
     className: "min-h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {

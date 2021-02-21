@@ -6,7 +6,9 @@ interface IDefaultValue {
     mobileNavOpen: boolean;
     handleMobileNavToggle: (event: React.MouseEvent<HTMLButtonElement>) => void;
     notificationState: INotification | null;
-    notify: React.Dispatch<SetStateAction<INotification>>
+    notify: (data: INotification) => void;
+    modalActive: boolean;
+    setModalActive: React.Dispatch<SetStateAction<boolean>>
 }
 
 const defaultValue = null

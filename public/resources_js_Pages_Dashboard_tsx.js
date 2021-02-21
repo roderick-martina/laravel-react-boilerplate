@@ -6291,48 +6291,40 @@ var NotificationType;
 (function (NotificationType) {
   NotificationType[NotificationType["success"] = 0] = "success";
   NotificationType[NotificationType["info"] = 1] = "info";
-})(NotificationType = exports.NotificationType || (exports.NotificationType = {})); // const Notification = (data: INotification | null) => {
-
+})(NotificationType = exports.NotificationType || (exports.NotificationType = {}));
 
 var Notification = function Notification() {
   // @ts-ignore
   var notification = inertia_react_1.usePage().props.notification;
-  var notificationState = AppContext_1.useAppContext().notificationState;
 
-  var _a = react_1["default"].useState(null),
-      state = _a[0],
-      setState = _a[1];
+  var _a = AppContext_1.useAppContext(),
+      notificationState = _a.notificationState,
+      notify = _a.notify,
+      modalActive = _a.modalActive,
+      setModalActive = _a.setModalActive;
 
-  var _b = react_1["default"].useState(false),
-      active = _b[0],
-      setActive = _b[1];
+  var _b = react_1["default"].useState(null),
+      state = _b[0],
+      setState = _b[1];
 
   var hideNotification = function hideNotification() {
-    setActive(false);
+    setModalActive(false);
   };
 
   react_1["default"].useEffect(function () {
     if (notification !== null) {
-      setState(notification);
-      setActive(true);
-      setTimeout(function () {
-        hideNotification();
-      }, 3000);
+      notify(notification);
     }
   }, [notification]);
   react_1["default"].useEffect(function () {
     if (notificationState !== null) {
       setState(notificationState);
-      setActive(true);
-      setTimeout(function () {
-        hideNotification();
-      }, 3000);
     }
   }, [notificationState === null || notificationState === void 0 ? void 0 : notificationState.title]);
   return react_1["default"].createElement("div", {
     className: "z-50 fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end"
   }, react_1["default"].createElement(react_2.Transition, {
-    show: active,
+    show: modalActive,
     enter: "transform ease-out duration-300 transition",
     enterFrom: "translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2",
     enterTo: "translate-y-0 opacity-100 sm:translate-x-0",
@@ -7009,16 +7001,30 @@ var Layout = function Layout(_a) {
 
   var _c = react_1["default"].useState(null),
       notificationState = _c[0],
-      notify = _c[1];
+      setNotificationState = _c[1];
+
+  var _d = react_1["default"].useState(false),
+      modalActive = _d[0],
+      setModalActive = _d[1];
+
+  var notify = function notify(data) {
+    setNotificationState(data);
+    setModalActive(true);
+    setTimeout(function () {
+      setModalActive(false);
+    }, 3000);
+  };
 
   var value = react_1["default"].useMemo(function () {
     return {
       mobileNavOpen: mobileNavOpen,
       handleMobileNavToggle: handleMobileNavToggle,
       notificationState: notificationState,
-      notify: notify
+      notify: notify,
+      modalActive: modalActive,
+      setModalActive: setModalActive
     };
-  }, [mobileNavOpen, notificationState]);
+  }, [mobileNavOpen, notificationState, modalActive]);
   return react_1["default"].createElement("div", {
     className: "min-h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {

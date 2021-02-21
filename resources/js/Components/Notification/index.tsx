@@ -14,23 +14,19 @@ export interface INotification {
     type?: NotificationType | null
 }
 
-// const Notification = (data: INotification | null) => {
 const Notification = () => {
     // @ts-ignore
     const {notification}: IProps | null = usePage().props
-    const {notificationState} = useAppContext()
+    const {notificationState, notify, modalActive, setModalActive} = useAppContext()
     const [state, setState] = React.useState<INotification | null>(null)
-    const [active, setActive] = React.useState(false)
     const hideNotification = () => {
-        setActive(false)
+        setModalActive(false)
     }
+
     React.useEffect(() => {
+
         if (notification !== null) {
-            setState(notification)
-            setActive(true)
-            setTimeout(() => {
-                hideNotification()
-            }, 3000)
+            notify(notification)
         }
 
     }, [notification])
@@ -38,10 +34,6 @@ const Notification = () => {
     React.useEffect(() => {
         if (notificationState !== null) {
             setState(notificationState)
-            setActive(true)
-            setTimeout(() => {
-                hideNotification()
-            }, 3000)
         }
     }, [notificationState?.title])
 
@@ -49,7 +41,7 @@ const Notification = () => {
         <div
             className="z-50 fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end">
             <Transition
-                show={active}
+                show={modalActive}
                 enter="transform ease-out duration-300 transition"
                 enterFrom="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
                 enterTo="translate-y-0 opacity-100 sm:translate-x-0"
