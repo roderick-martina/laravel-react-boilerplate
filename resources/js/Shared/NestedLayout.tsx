@@ -56,7 +56,7 @@ const NestedLayout = ({name, route_name, children}: IProps) => {
                 <Notification/>
                 <div
                     // className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
-                    className="flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
+                     className="flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
                     <button
                         onClick={handleMobileNavToggle}
                         className="px-4 border-r border-cool-gray-200 text-cool-gray-400 focus:outline-none focus:bg-cool-gray-100 focus:text-cool-gray-600 lg:hidden"
@@ -101,7 +101,7 @@ const NestedLayout = ({name, route_name, children}: IProps) => {
                             </button>
 
                             {/* Profile dropdown */}
-                            <div className="ml-3 relative">
+                            <div className={`${profileIsOpen ? 'relative z-10' : '' } ml-3`}>
                                 <div>
                                     <button
                                         onClick={() => setProfileIsOpen(!profileIsOpen)}
@@ -126,6 +126,7 @@ const NestedLayout = ({name, route_name, children}: IProps) => {
                                     leave="transition ease-in duration-75"
                                     leaveFrom="transform opacity-100 scale-100"
                                     leaveTo="transform opacity-0 scale-95"
+                                    className={``}
                                 >
 
                                     <div
@@ -138,14 +139,14 @@ const NestedLayout = ({name, route_name, children}: IProps) => {
 
                                                 <InertiaLink
                                                     href="/settings"
-                                                    className="block px-4 py-2 text-sm text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150"
+                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition ease-in-out duration-150"
                                                     role="menuitem"
                                                 >
                                                     Settings
                                                 </InertiaLink>
 
                                                 <button
-                                                    className="w-full px-4 py-2 text-sm text-left text-cool-gray-700 hover:bg-cool-gray transition ease-in-out duration-150"
+                                                    className="w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100 transition ease-in-out duration-150"
                                                     role="menuitem"
                                                     onClick={logout}
                                                 >
@@ -159,7 +160,7 @@ const NestedLayout = ({name, route_name, children}: IProps) => {
                         </div>
                     </div>
                 </div>
-                <main className="flex flex-col flex-1 relative z-0 overflow-y-auto">
+                <main className="flex flex-col flex-1 overflow-y-auto">
                     <div
                         className="w-full max-w-5xl mx-auto flex flex-col flex-1 px-4 sm:px-6 lg:px-8 mt-8"
                     >

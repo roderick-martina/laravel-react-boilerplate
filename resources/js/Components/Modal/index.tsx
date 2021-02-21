@@ -16,19 +16,9 @@ const Modal = ({active, title,submitText = 'Submit', handleHideModal, children}:
             <ScrollLock isActive={active}/>
             <TouchScrollable>
                 <div
-                    className={`${active ? 'pointer-events-auto' : 'pointer-events-none'} fixed z-20 inset-0 overflow-y-auto`}>
+                    className={`${active ? 'pointer-events-auto' : 'pointer-events-none'} fixed inset-0 overflow-y-auto`}>
                     <div
                         className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        {/*
-      Background overlay, show/hide based on modal state.
-
-      Entering: "ease-out duration-300"
-        From: "opacity-0"
-        To: "opacity-100"
-      Leaving: "ease-in duration-200"
-        From: "opacity-100"
-        To: "opacity-0"
-    */}
                         <Transition show={active}>
                             <Transition.Child
                                 enter="ease-out duration-300"
