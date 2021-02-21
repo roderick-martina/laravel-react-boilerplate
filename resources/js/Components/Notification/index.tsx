@@ -1,22 +1,25 @@
 import React from 'react'
 import {Transition} from '@headlessui/react'
 import {usePage} from "@inertiajs/inertia-react";
+import {useAppContext} from "@/Hooks/AppContext";
 
-enum NotificationType {
+export enum NotificationType {
     success,
     info
 }
 
-interface IProps {
+export interface INotification {
     title: string;
     description?: string;
     type?: NotificationType | null
 }
 
+// const Notification = (data: INotification | null) => {
 const Notification = () => {
     // @ts-ignore
     const {notification}: IProps | null = usePage().props
-    const [state, setState] = React.useState<IProps | null>(null)
+    const {notificationState} = useAppContext()
+    const [state, setState] = React.useState<INotification | null>(null)
     const [active, setActive] = React.useState(false)
     const hideNotification = () => {
         setActive(false)
@@ -25,12 +28,23 @@ const Notification = () => {
         if (notification !== null) {
             setState(notification)
             setActive(true)
-            setTimeout(()=> {
+            setTimeout(() => {
                 hideNotification()
-            },3000)
+            }, 3000)
         }
 
     }, [notification])
+
+    React.useEffect(() => {
+        if (notificationState !== null) {
+            setState(notificationState)
+            setActive(true)
+            setTimeout(() => {
+                hideNotification()
+            }, 3000)
+        }
+    }, [notificationState])
+
     return (
         <div
             className="z-50 fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end">
@@ -67,7 +81,7 @@ const Notification = () => {
                             <div className="ml-4 flex-shrink-0 flex">
                                 <button
                                     onClick={hideNotification}
-                                    className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
                                     <span className="sr-only">Close</span>
                                     {/* Heroicon name: solid/x */}
                                     <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"

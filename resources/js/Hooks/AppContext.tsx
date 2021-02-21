@@ -1,8 +1,12 @@
 import * as React from 'react'
+import {INotification} from "@/Components/Notification";
+import {SetStateAction} from "react";
 
 interface IDefaultValue {
     mobileNavOpen: boolean;
     handleMobileNavToggle: (event: React.MouseEvent<HTMLButtonElement>) => void;
+    notificationState: INotification | null;
+    notify: React.Dispatch<SetStateAction<INotification>>
 }
 
 const defaultValue = null
