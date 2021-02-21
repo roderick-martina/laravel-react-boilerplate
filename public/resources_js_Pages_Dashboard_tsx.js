@@ -6276,6 +6276,7 @@ var __importDefault = this && this.__importDefault || function (mod) {
 Object.defineProperty(exports, "__esModule", ({
   value: true
 }));
+exports.NotificationType = void 0;
 
 var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
 
@@ -6283,16 +6284,20 @@ var react_2 = __webpack_require__(/*! @headlessui/react */ "./node_modules/@head
 
 var inertia_react_1 = __webpack_require__(/*! @inertiajs/inertia-react */ "./node_modules/@inertiajs/inertia-react/dist/index.js");
 
+var AppContext_1 = __webpack_require__(/*! @/Hooks/AppContext */ "./resources/js/Hooks/AppContext.tsx");
+
 var NotificationType;
 
 (function (NotificationType) {
   NotificationType[NotificationType["success"] = 0] = "success";
   NotificationType[NotificationType["info"] = 1] = "info";
-})(NotificationType || (NotificationType = {}));
+})(NotificationType = exports.NotificationType || (exports.NotificationType = {})); // const Notification = (data: INotification | null) => {
+
 
 var Notification = function Notification() {
   // @ts-ignore
   var notification = inertia_react_1.usePage().props.notification;
+  var notificationState = AppContext_1.useAppContext().notificationState;
 
   var _a = react_1["default"].useState(null),
       state = _a[0],
@@ -6315,6 +6320,15 @@ var Notification = function Notification() {
       }, 3000);
     }
   }, [notification]);
+  react_1["default"].useEffect(function () {
+    if (notificationState !== null) {
+      setState(notificationState);
+      setActive(true);
+      setTimeout(function () {
+        hideNotification();
+      }, 3000);
+    }
+  }, [notificationState]);
   return react_1["default"].createElement("div", {
     className: "z-50 fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end"
   }, react_1["default"].createElement(react_2.Transition, {
@@ -6356,7 +6370,7 @@ var Notification = function Notification() {
     className: "ml-4 flex-shrink-0 flex"
   }, react_1["default"].createElement("button", {
     onClick: hideNotification,
-    className: "bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+    className: "bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
   }, react_1["default"].createElement("span", {
     className: "sr-only"
   }, "Close"), react_1["default"].createElement("svg", {
@@ -6993,12 +7007,18 @@ var Layout = function Layout(_a) {
     setMobileNavOpen(!mobileNavOpen);
   };
 
+  var _c = react_1["default"].useState(null),
+      notificationState = _c[0],
+      notify = _c[1];
+
   var value = react_1["default"].useMemo(function () {
     return {
       mobileNavOpen: mobileNavOpen,
-      handleMobileNavToggle: handleMobileNavToggle
+      handleMobileNavToggle: handleMobileNavToggle,
+      notificationState: notificationState,
+      notify: notify
     };
-  }, [mobileNavOpen]);
+  }, [mobileNavOpen, notificationState]);
   return react_1["default"].createElement("div", {
     className: "min-h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {

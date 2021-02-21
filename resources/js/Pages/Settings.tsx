@@ -10,6 +10,7 @@ import ErrorBanner from "@/Components/ErrorBanner";
 import axios from 'axios'
 import AppSection from "@/Components/AppSection";
 import Modal from "@/Components/Modal"
+import {useAppContext} from "@/Hooks/AppContext";
 
 interface IProfile {
     first_name: string;
@@ -42,6 +43,8 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
     const passwordSubText = 'Ensure your account is using a long, random password to stay secure'
     const twoFaHeading = 'Two Factor Authentication'
     const twoFaSubText = 'Add additional security to your account using two factor authentication.'
+
+    const {notify} = useAppContext()
 
     const [profileValues, setProfileValues] = React.useState<IProfile>({
         first_name: auth.user.first_name,
@@ -189,24 +192,19 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                 getQrCode()
                 getRecoveryCode()
                 hideModal()
-                // this.$actions.notify({
-                //     title: '2FA geactiveerd.',
-                // })
+                notify({
+                    title: 'Activated two factor authentication',
+                })
             }
         })
     }
 
     const deleteTwoFa = () => {
         Inertia.delete('user/two-factor-authentication', {
-            onStart: () => {
-                // const message = {
-                //     title: 'Removed two factor authentication',
-                //     description: ''
-                // }
-                // setNotificationMessage(message)
-            },
             onSuccess: () => {
-                // setShowSuccessNotification(true)
+                notify({
+                    title: 'Disabled two factor authentication'
+                })
             },
         })
     }
@@ -242,16 +240,11 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
             preserveScroll: true,
             onSuccess: page => {
                 getRecoveryCode()
+                notify({
+                    title: 'Regenerated recovery codes',
+                })
             }
         })
-        // const message = {
-        //     title: 'Regenerated recovery codes',
-        //     description: ''
-        // }
-        // const setNotification = () => setShowSuccessNotification(true)
-        // const setMessage = () => setNotificationMessage(message)
-        // handleSubmit(e, 'user/two-factor-recovery-codes', null, setNotification, setMessage)
-        //     .then(() => getRecoveryCode())
     }
 
     return (
@@ -407,7 +400,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
 
                                     <button
                                         type="button"
-                                        className="btn-danger ml-2"
+                                        className="btn-danger ml-3"
                                         onClick={() => deleteTwoFa()}
                                     >
                                         Disable

@@ -261,12 +261,18 @@ var Layout = function Layout(_a) {
     setMobileNavOpen(!mobileNavOpen);
   };
 
+  var _c = react_1["default"].useState(null),
+      notificationState = _c[0],
+      notify = _c[1];
+
   var value = react_1["default"].useMemo(function () {
     return {
       mobileNavOpen: mobileNavOpen,
-      handleMobileNavToggle: handleMobileNavToggle
+      handleMobileNavToggle: handleMobileNavToggle,
+      notificationState: notificationState,
+      notify: notify
     };
-  }, [mobileNavOpen]);
+  }, [mobileNavOpen, notificationState]);
   return react_1["default"].createElement("div", {
     className: "min-h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {

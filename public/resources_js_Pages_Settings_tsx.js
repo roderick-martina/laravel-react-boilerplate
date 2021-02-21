@@ -6660,6 +6660,7 @@ var __importDefault = this && this.__importDefault || function (mod) {
 Object.defineProperty(exports, "__esModule", ({
   value: true
 }));
+exports.NotificationType = void 0;
 
 var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
 
@@ -6667,16 +6668,20 @@ var react_2 = __webpack_require__(/*! @headlessui/react */ "./node_modules/@head
 
 var inertia_react_1 = __webpack_require__(/*! @inertiajs/inertia-react */ "./node_modules/@inertiajs/inertia-react/dist/index.js");
 
+var AppContext_1 = __webpack_require__(/*! @/Hooks/AppContext */ "./resources/js/Hooks/AppContext.tsx");
+
 var NotificationType;
 
 (function (NotificationType) {
   NotificationType[NotificationType["success"] = 0] = "success";
   NotificationType[NotificationType["info"] = 1] = "info";
-})(NotificationType || (NotificationType = {}));
+})(NotificationType = exports.NotificationType || (exports.NotificationType = {})); // const Notification = (data: INotification | null) => {
+
 
 var Notification = function Notification() {
   // @ts-ignore
   var notification = inertia_react_1.usePage().props.notification;
+  var notificationState = AppContext_1.useAppContext().notificationState;
 
   var _a = react_1["default"].useState(null),
       state = _a[0],
@@ -6699,6 +6704,15 @@ var Notification = function Notification() {
       }, 3000);
     }
   }, [notification]);
+  react_1["default"].useEffect(function () {
+    if (notificationState !== null) {
+      setState(notificationState);
+      setActive(true);
+      setTimeout(function () {
+        hideNotification();
+      }, 3000);
+    }
+  }, [notificationState]);
   return react_1["default"].createElement("div", {
     className: "z-50 fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end"
   }, react_1["default"].createElement(react_2.Transition, {
@@ -6740,7 +6754,7 @@ var Notification = function Notification() {
     className: "ml-4 flex-shrink-0 flex"
   }, react_1["default"].createElement("button", {
     onClick: hideNotification,
-    className: "bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+    className: "bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
   }, react_1["default"].createElement("span", {
     className: "sr-only"
   }, "Close"), react_1["default"].createElement("svg", {
@@ -7348,6 +7362,8 @@ var AppSection_1 = __importDefault(__webpack_require__(/*! @/Components/AppSecti
 
 var Modal_1 = __importDefault(__webpack_require__(/*! @/Components/Modal */ "./resources/js/Components/Modal/index.tsx"));
 
+var AppContext_1 = __webpack_require__(/*! @/Hooks/AppContext */ "./resources/js/Hooks/AppContext.tsx");
+
 var Settings = function Settings(_a) {
   var route_name = _a.route_name,
       auth = _a.auth,
@@ -7357,6 +7373,7 @@ var Settings = function Settings(_a) {
   var passwordSubText = 'Ensure your account is using a long, random password to stay secure';
   var twoFaHeading = 'Two Factor Authentication';
   var twoFaSubText = 'Add additional security to your account using two factor authentication.';
+  var notify = AppContext_1.useAppContext().notify;
 
   var _b = React.useState({
     first_name: auth.user.first_name,
@@ -7524,22 +7541,20 @@ var Settings = function Settings(_a) {
       onSuccess: function onSuccess(page) {
         getQrCode();
         getRecoveryCode();
-        hideModal(); // this.$actions.notify({
-        //     title: '2FA geactiveerd.',
-        // })
+        hideModal();
+        notify({
+          title: 'Activated two factor authentication'
+        });
       }
     });
   };
 
   var deleteTwoFa = function deleteTwoFa() {
     inertia_1.Inertia["delete"]('user/two-factor-authentication', {
-      onStart: function onStart() {// const message = {
-        //     title: 'Removed two factor authentication',
-        //     description: ''
-        // }
-        // setNotificationMessage(message)
-      },
-      onSuccess: function onSuccess() {// setShowSuccessNotification(true)
+      onSuccess: function onSuccess() {
+        notify({
+          title: 'Disabled two factor authentication'
+        });
       }
     });
   };
@@ -7572,15 +7587,11 @@ var Settings = function Settings(_a) {
       preserveScroll: true,
       onSuccess: function onSuccess(page) {
         getRecoveryCode();
+        notify({
+          title: 'Regenerated recovery codes'
+        });
       }
-    }); // const message = {
-    //     title: 'Regenerated recovery codes',
-    //     description: ''
-    // }
-    // const setNotification = () => setShowSuccessNotification(true)
-    // const setMessage = () => setNotificationMessage(message)
-    // handleSubmit(e, 'user/two-factor-recovery-codes', null, setNotification, setMessage)
-    //     .then(() => getRecoveryCode())
+    });
   };
 
   return React.createElement(NestedLayout_1["default"], {
@@ -7699,7 +7710,7 @@ var Settings = function Settings(_a) {
     onClick: showCodes
   }, "Show Recovery Codes"), React.createElement("button", {
     type: "button",
-    className: "btn-danger ml-2",
+    className: "btn-danger ml-3",
     onClick: function onClick() {
       return deleteTwoFa();
     }
@@ -7768,12 +7779,18 @@ var Layout = function Layout(_a) {
     setMobileNavOpen(!mobileNavOpen);
   };
 
+  var _c = react_1["default"].useState(null),
+      notificationState = _c[0],
+      notify = _c[1];
+
   var value = react_1["default"].useMemo(function () {
     return {
       mobileNavOpen: mobileNavOpen,
-      handleMobileNavToggle: handleMobileNavToggle
+      handleMobileNavToggle: handleMobileNavToggle,
+      notificationState: notificationState,
+      notify: notify
     };
-  }, [mobileNavOpen]);
+  }, [mobileNavOpen, notificationState]);
   return react_1["default"].createElement("div", {
     className: "min-h-screen flex bg-gray-50 font-sans"
   }, react_1["default"].createElement(AppContext_1.AppContextProvider, {
