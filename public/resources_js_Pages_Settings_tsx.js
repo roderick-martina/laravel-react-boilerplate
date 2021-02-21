@@ -6712,7 +6712,7 @@ var Notification = function Notification() {
         hideNotification();
       }, 3000);
     }
-  }, [notificationState]);
+  }, [notificationState === null || notificationState === void 0 ? void 0 : notificationState.title]);
   return react_1["default"].createElement("div", {
     className: "z-50 fixed inset-0 flex items-end justify-center px-4 py-6 pointer-events-none sm:p-6 sm:items-start sm:justify-end"
   }, react_1["default"].createElement(react_2.Transition, {

@@ -43,7 +43,7 @@ const Notification = () => {
                 hideNotification()
             }, 3000)
         }
-    }, [notificationState])
+    }, [notificationState?.title])
 
     return (
         <div
