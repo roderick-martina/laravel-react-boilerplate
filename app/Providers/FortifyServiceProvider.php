@@ -10,6 +10,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Inertia;
 use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -46,6 +47,14 @@ class FortifyServiceProvider extends ServiceProvider
 
         Fortify::loginView(function () {
             return view('auth.login');
+        });
+
+        Fortify::confirmPasswordView(function () {
+            return Inertia::render('ConfirmPassword/index');
+        });
+
+        Fortify::twoFactorChallengeView(function() {
+            return Inertia::render('TwoFactorChallenge/index');
         });
     }
 }

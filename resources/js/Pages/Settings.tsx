@@ -23,6 +23,19 @@ interface IPassword {
     password_confirmation: string;
 }
 
+interface IConfirmModal {
+    active: boolean;
+    callback: null | (() => void)
+}
+
+interface IPasswordConfirmation {
+    password: string;
+}
+
+interface IPasswordConfirmError {
+    password: string[];
+}
+
 const Settings = ({route_name, auth, errors}: IDefaultProps) => {
     const profileHeading = 'Personal Information'
     const passwordHeading = 'Update Password'
@@ -42,13 +55,28 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
         password_confirmation: '',
     })
 
+    const [passwordConfirmationValues, setPasswordConfirmationValues] = React.useState<IPasswordConfirmation>({
+        password: '',
+    })
+
     const [qrCode, setQrCode] = React.useState('')
     const [showRecoveryCodes, setShowRecoveryCodes] = React.useState(false)
     const [recoveryCodes, setRecoveryCodes] = React.useState([])
-    const [modalActive, setModalActive] = React.useState(false)
+    const [passwordConfirmErrors, setPasswordConfirmErrors] = React.useState<IPasswordConfirmError | null>(null)
+    const [confirmModal, setConfirmModal] = React.useState<IConfirmModal>({
+        active: false,
+        callback: null
+    })
 
     const hideModal = () => {
-        setModalActive(false)
+        setPasswordConfirmationValues({
+            password: ''
+        })
+
+        setConfirmModal({
+            active: false,
+            callback: null
+        })
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>, setValues: React.Dispatch<SetStateAction<any>>) => {
@@ -80,6 +108,11 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         handleChange(e, setPasswordValues)
     }
+
+    const handlePasswordConfirmationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        handleChange(e, setPasswordConfirmationValues)
+    }
+
     const handlePasswordSubmit = (e: React.ChangeEvent<HTMLFormElement>) => {
         e.preventDefault()
         return Inertia.put(`user/password`, passwordValues, {
@@ -94,17 +127,73 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
     }
 
     const getRecoveryCode = () => {
-        axios.get('/user/two-factor-recovery-codes')
-            .then(res => setRecoveryCodes(res.data))
+        return axios.get('/user/two-factor-recovery-codes')
+            .then(res => {
+                setRecoveryCodes(res.data)
+                setShowRecoveryCodes(true)
+            })
+    }
+
+    const checkIfPasswordIsConfirmed = () => {
+        return new Promise((resolve, reject) => {
+            axios.get('/user/confirmed-password-status')
+                .then(data => {
+                    resolve(data.data.confirmed)
+                }).catch(err => {
+                reject(new Error('Something went wrong, please try again later contact support.'))
+            })
+        })
+    }
+
+    const handleConfirmPassword = (e: React.ChangeEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        if (confirmModal.callback) {
+            confirmModal.callback()
+        }
+    }
+
+    const submitConfirmPassword = (e: React.ChangeEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        axios.post('/user/confirm-password', passwordConfirmationValues)
+            .then(() => {
+                if (confirmModal.callback) {
+                    confirmModal.callback()
+                }
+            })
+            .catch(err => {
+                setPasswordConfirmErrors(err.response.data.errors)
+            })
     }
 
     const enableTwoFa = (e: any) => {
-        setModalActive(true)
-        // handleSubmit(e, `/user/two-factor-authentication`)
-        //     .then(() => {
-        //         getQrCode()
-        //         getRecoveryCode()
-        //     })
+        checkIfPasswordIsConfirmed()
+            .then(confirmed => {
+                // if confirmed enable 2fa else confirm
+                if (confirmed) {
+                    activate2Fa()
+                } else {
+                    setConfirmModal({
+                        active: true,
+                        callback: activate2Fa
+                    })
+                }
+            })
+            .catch(err => {
+                alert(err.message)
+            })
+    }
+    const activate2Fa = () => {
+        Inertia.post('/user/two-factor-authentication', undefined, {
+            preserveScroll: true,
+            onSuccess: page => {
+                getQrCode()
+                getRecoveryCode()
+                hideModal()
+                // this.$actions.notify({
+                //     title: '2FA geactiveerd.',
+                // })
+            }
+        })
     }
 
     const deleteTwoFa = () => {
@@ -122,11 +211,43 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
         })
     }
 
+    const getCodes = () => {
+        getRecoveryCode()
+            .then(() => {
+                hideModal()
+            })
+    }
+
+    const showCodes = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault()
+        checkIfPasswordIsConfirmed()
+            .then(confirmed => {
+                // if confirmed enable 2fa else confirm
+                if (confirmed) {
+                    getRecoveryCode()
+                } else {
+                    setConfirmModal({
+                        active: true,
+                        callback: getCodes
+                    })
+                }
+            })
+            .catch(err => {
+                alert(err.message)
+            })
+    }
+
     const regenerateRecoveryCode = (e: any) => {
-        const message = {
-            title: 'Regenerated recovery codes',
-            description: ''
-        }
+        Inertia.post('/user/two-factor-recovery-codes', undefined, {
+            preserveScroll: true,
+            onSuccess: page => {
+                getRecoveryCode()
+            }
+        })
+        // const message = {
+        //     title: 'Regenerated recovery codes',
+        //     description: ''
+        // }
         // const setNotification = () => setShowSuccessNotification(true)
         // const setMessage = () => setNotificationMessage(message)
         // handleSubmit(e, 'user/two-factor-recovery-codes', null, setNotification, setMessage)
@@ -143,6 +264,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                             <FormInput
                                 id={"first_name"}
                                 label={'First name'}
+                                type={'text'}
                                 value={profileValues.first_name}
                                 onChange={handleProfileChange}
                             />
@@ -152,6 +274,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                             <FormInput
                                 id={"last_name"}
                                 label={'Last name'}
+                                type={'text'}
                                 value={profileValues.last_name}
                                 onChange={handleProfileChange}
                             />
@@ -252,8 +375,8 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                         <ul
                                             className="col-span-6 sm:col-span-5 px-4 py-4 font-mono text-sm bg-gray-100 rounded-lg"
                                         >
-                                            {recoveryCodes.map(code => (
-                                                <li>{code}</li>
+                                            {recoveryCodes.map((code,index) => (
+                                                <li key={`code-${index}`}>{code}</li>
                                             ))}
                                         </ul>
                                     </>
@@ -267,7 +390,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                     {showRecoveryCodes ? (
                                         <button
                                             type="button"
-                                            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue active:text-gray-800 active:bg-gray-50 transition ease-in-out duration-150 mr-3"
+                                            className="btn-secondary"
                                             onClick={e => regenerateRecoveryCode(e)}
                                         >
                                             Regenerate Recovery Codes
@@ -275,8 +398,8 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                     ) : (
                                         <button
                                             type="button"
-                                            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue active:text-gray-800 active:bg-gray-50 transition ease-in-out duration-150 mr-3"
-                                            onClick={() => setShowRecoveryCodes(true)}
+                                            className="btn-secondary"
+                                            onClick={showCodes}
                                         >
                                             Show Recovery Codes
                                         </button>
@@ -284,7 +407,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
 
                                     <button
                                         type="button"
-                                        className="inline-flex items-center justify-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-600 transition ease-in-out duration-150"
+                                        className="btn-danger ml-2"
                                         onClick={() => deleteTwoFa()}
                                     >
                                         Disable
@@ -297,18 +420,23 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                     </div>
                 </AppSection>
             </div>
-            <Modal active={modalActive} title={'Password confirmation'} handleHideModal={hideModal}>
+            <Modal active={confirmModal.active} title={'Password confirmation'} handleHideModal={hideModal}>
                 <p>
                     For your security, please confirm your password to continue.
                 </p>
-                <form className={`mt-3`}>
+                <form onSubmit={submitConfirmPassword} className={`mt-3`}>
                     <FormInput
-                        id={"check_password_confirmation"}
+                        id={"password"}
                         label={''}
                         type={'password'}
-                        value={passwordValues.password}
-                        onChange={handlePasswordChange}
+                        value={passwordConfirmationValues.password}
+                        onChange={handlePasswordConfirmationChange}
                     />
+                    {passwordConfirmErrors !== null ? (
+                        <p className="mt-2 text-sm text-red-600">
+                            {passwordConfirmErrors?.password[0]}
+                        </p>
+                    ) : null}
                 </form>
             </Modal>
         </NestedLayout>

@@ -51582,6 +51582,26 @@ if (false) {} else {
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 var map = {
+	"./ConfirmPassword": [
+		"./resources/js/Pages/ConfirmPassword/index.tsx",
+		"resources_js_Pages_ConfirmPassword_index_tsx"
+	],
+	"./ConfirmPassword/": [
+		"./resources/js/Pages/ConfirmPassword/index.tsx",
+		"resources_js_Pages_ConfirmPassword_index_tsx"
+	],
+	"./ConfirmPassword/index": [
+		"./resources/js/Pages/ConfirmPassword/index.tsx",
+		"resources_js_Pages_ConfirmPassword_index_tsx"
+	],
+	"./ConfirmPassword/index.": [
+		"./resources/js/Pages/ConfirmPassword/index.tsx",
+		"resources_js_Pages_ConfirmPassword_index_tsx"
+	],
+	"./ConfirmPassword/index.tsx": [
+		"./resources/js/Pages/ConfirmPassword/index.tsx",
+		"resources_js_Pages_ConfirmPassword_index_tsx"
+	],
 	"./Dashboard": [
 		"./resources/js/Pages/Dashboard.tsx",
 		"resources_js_Pages_Dashboard_tsx"
@@ -51605,6 +51625,26 @@ var map = {
 	"./Settings.tsx": [
 		"./resources/js/Pages/Settings.tsx",
 		"resources_js_Pages_Settings_tsx"
+	],
+	"./TwoFactorChallenge": [
+		"./resources/js/Pages/TwoFactorChallenge/index.tsx",
+		"resources_js_Pages_TwoFactorChallenge_index_tsx"
+	],
+	"./TwoFactorChallenge/": [
+		"./resources/js/Pages/TwoFactorChallenge/index.tsx",
+		"resources_js_Pages_TwoFactorChallenge_index_tsx"
+	],
+	"./TwoFactorChallenge/index": [
+		"./resources/js/Pages/TwoFactorChallenge/index.tsx",
+		"resources_js_Pages_TwoFactorChallenge_index_tsx"
+	],
+	"./TwoFactorChallenge/index.": [
+		"./resources/js/Pages/TwoFactorChallenge/index.tsx",
+		"resources_js_Pages_TwoFactorChallenge_index_tsx"
+	],
+	"./TwoFactorChallenge/index.tsx": [
+		"./resources/js/Pages/TwoFactorChallenge/index.tsx",
+		"resources_js_Pages_TwoFactorChallenge_index_tsx"
 	],
 	"./Welcome": [
 		"./resources/js/Pages/Welcome.tsx",
@@ -51734,7 +51774,7 @@ module.exports = webpackAsyncContext;
 /******/ 		// This function allow to reference async chunks
 /******/ 		__webpack_require__.u = (chunkId) => {
 /******/ 			// return url for filenames not based on template
-/******/ 			if ({"resources_js_Pages_Dashboard_tsx":1,"resources_js_Pages_Settings_tsx":1,"resources_js_Pages_Welcome_tsx":1}[chunkId]) return "" + chunkId + ".js";
+/******/ 			if ({"resources_js_Pages_ConfirmPassword_index_tsx":1,"resources_js_Pages_Dashboard_tsx":1,"resources_js_Pages_Settings_tsx":1,"resources_js_Pages_TwoFactorChallenge_index_tsx":1,"resources_js_Pages_Welcome_tsx":1}[chunkId]) return "" + chunkId + ".js";
 /******/ 			// return url for filenames based on template
 /******/ 			return undefined;
 /******/ 		};

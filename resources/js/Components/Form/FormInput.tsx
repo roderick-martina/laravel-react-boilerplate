@@ -15,7 +15,8 @@ const FormInput = (props: any) => {
             )}
             <input
                 {...attribute}
-                className={`border-gray-300 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 mt-1 form-input block w-full py-2 px-3 border rounded-md shadow-sm transition duration-150 ease-in-out sm:text-sm sm:leading-5`}
+                // className={`border-gray-300 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 mt-1 form-input block w-full py-2 px-4 border rounded-md shadow-sm transition duration-150 ease-in-out sm:text-sm sm:leading-5`}
+                className={`form-input mt-1`}
             />
         </>
     )

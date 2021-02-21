@@ -6439,7 +6439,8 @@ var FormInput = function FormInput(props) {
     htmlFor: id,
     className: "block text-sm font-medium leading-5 text-gray-700"
   }, label), react_1["default"].createElement("input", __assign({}, attribute, {
-    className: "border-gray-300 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 mt-1 form-input block w-full py-2 px-3 border rounded-md shadow-sm transition duration-150 ease-in-out sm:text-sm sm:leading-5"
+    // className={`border-gray-300 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 mt-1 form-input block w-full py-2 px-4 border rounded-md shadow-sm transition duration-150 ease-in-out sm:text-sm sm:leading-5`}
+    className: "form-input mt-1"
   })));
 };
 
@@ -6628,7 +6629,7 @@ var Modal = function Modal(_a) {
   }, children))))), react_1["default"].createElement("div", {
     className: "bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"
   }, react_1["default"].createElement("button", {
-    type: "button",
+    type: "submit",
     className: "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-lighter focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm"
   }, submitText), react_1["default"].createElement("button", {
     type: "button",
@@ -7373,24 +7374,43 @@ var Settings = function Settings(_a) {
       passwordValues = _c[0],
       setPasswordValues = _c[1];
 
-  var _d = React.useState(''),
-      qrCode = _d[0],
-      setQrCode = _d[1];
+  var _d = React.useState({
+    password: ''
+  }),
+      passwordConfirmationValues = _d[0],
+      setPasswordConfirmationValues = _d[1];
 
-  var _e = React.useState(false),
-      showRecoveryCodes = _e[0],
-      setShowRecoveryCodes = _e[1];
+  var _e = React.useState(''),
+      qrCode = _e[0],
+      setQrCode = _e[1];
 
-  var _f = React.useState([]),
-      recoveryCodes = _f[0],
-      setRecoveryCodes = _f[1];
+  var _f = React.useState(false),
+      showRecoveryCodes = _f[0],
+      setShowRecoveryCodes = _f[1];
 
-  var _g = React.useState(false),
-      modalActive = _g[0],
-      setModalActive = _g[1];
+  var _g = React.useState([]),
+      recoveryCodes = _g[0],
+      setRecoveryCodes = _g[1];
+
+  var _h = React.useState(null),
+      passwordConfirmErrors = _h[0],
+      setPasswordConfirmErrors = _h[1];
+
+  var _j = React.useState({
+    active: false,
+    callback: null
+  }),
+      confirmModal = _j[0],
+      setConfirmModal = _j[1];
 
   var hideModal = function hideModal() {
-    setModalActive(false);
+    setPasswordConfirmationValues({
+      password: ''
+    });
+    setConfirmModal({
+      active: false,
+      callback: null
+    });
   };
 
   var handleChange = function handleChange(e, setValues) {
@@ -7424,6 +7444,10 @@ var Settings = function Settings(_a) {
     handleChange(e, setPasswordValues);
   };
 
+  var handlePasswordConfirmationChange = function handlePasswordConfirmationChange(e) {
+    handleChange(e, setPasswordConfirmationValues);
+  };
+
   var handlePasswordSubmit = function handlePasswordSubmit(e) {
     e.preventDefault();
     return inertia_1.Inertia.put("user/password", passwordValues, {
@@ -7443,17 +7467,68 @@ var Settings = function Settings(_a) {
   };
 
   var getRecoveryCode = function getRecoveryCode() {
-    axios_1["default"].get('/user/two-factor-recovery-codes').then(function (res) {
-      return setRecoveryCodes(res.data);
+    return axios_1["default"].get('/user/two-factor-recovery-codes').then(function (res) {
+      setRecoveryCodes(res.data);
+      setShowRecoveryCodes(true);
+    });
+  };
+
+  var checkIfPasswordIsConfirmed = function checkIfPasswordIsConfirmed() {
+    return new Promise(function (resolve, reject) {
+      axios_1["default"].get('/user/confirmed-password-status').then(function (data) {
+        resolve(data.data.confirmed);
+      })["catch"](function (err) {
+        reject(new Error('Something went wrong, please try again later contact support.'));
+      });
+    });
+  };
+
+  var handleConfirmPassword = function handleConfirmPassword(e) {
+    e.preventDefault();
+
+    if (confirmModal.callback) {
+      confirmModal.callback();
+    }
+  };
+
+  var submitConfirmPassword = function submitConfirmPassword(e) {
+    e.preventDefault();
+    axios_1["default"].post('/user/confirm-password', passwordConfirmationValues).then(function () {
+      if (confirmModal.callback) {
+        confirmModal.callback();
+      }
+    })["catch"](function (err) {
+      setPasswordConfirmErrors(err.response.data.errors);
     });
   };
 
   var enableTwoFa = function enableTwoFa(e) {
-    setModalActive(true); // handleSubmit(e, `/user/two-factor-authentication`)
-    //     .then(() => {
-    //         getQrCode()
-    //         getRecoveryCode()
-    //     })
+    checkIfPasswordIsConfirmed().then(function (confirmed) {
+      // if confirmed enable 2fa else confirm
+      if (confirmed) {
+        activate2Fa();
+      } else {
+        setConfirmModal({
+          active: true,
+          callback: activate2Fa
+        });
+      }
+    })["catch"](function (err) {
+      alert(err.message);
+    });
+  };
+
+  var activate2Fa = function activate2Fa() {
+    inertia_1.Inertia.post('/user/two-factor-authentication', undefined, {
+      preserveScroll: true,
+      onSuccess: function onSuccess(page) {
+        getQrCode();
+        getRecoveryCode();
+        hideModal(); // this.$actions.notify({
+        //     title: '2FA geactiveerd.',
+        // })
+      }
+    });
   };
 
   var deleteTwoFa = function deleteTwoFa() {
@@ -7469,11 +7544,40 @@ var Settings = function Settings(_a) {
     });
   };
 
+  var getCodes = function getCodes() {
+    getRecoveryCode().then(function () {
+      hideModal();
+    });
+  };
+
+  var showCodes = function showCodes(e) {
+    e.preventDefault();
+    checkIfPasswordIsConfirmed().then(function (confirmed) {
+      // if confirmed enable 2fa else confirm
+      if (confirmed) {
+        getRecoveryCode();
+      } else {
+        setConfirmModal({
+          active: true,
+          callback: getCodes
+        });
+      }
+    })["catch"](function (err) {
+      alert(err.message);
+    });
+  };
+
   var regenerateRecoveryCode = function regenerateRecoveryCode(e) {
-    var message = {
-      title: 'Regenerated recovery codes',
-      description: ''
-    }; // const setNotification = () => setShowSuccessNotification(true)
+    inertia_1.Inertia.post('/user/two-factor-recovery-codes', undefined, {
+      preserveScroll: true,
+      onSuccess: function onSuccess(page) {
+        getRecoveryCode();
+      }
+    }); // const message = {
+    //     title: 'Regenerated recovery codes',
+    //     description: ''
+    // }
+    // const setNotification = () => setShowSuccessNotification(true)
     // const setMessage = () => setNotificationMessage(message)
     // handleSubmit(e, 'user/two-factor-recovery-codes', null, setNotification, setMessage)
     //     .then(() => getRecoveryCode())
@@ -7497,6 +7601,7 @@ var Settings = function Settings(_a) {
   }, React.createElement(FormInput_1["default"], {
     id: "first_name",
     label: 'First name',
+    type: 'text',
     value: profileValues.first_name,
     onChange: handleProfileChange
   })), React.createElement("div", {
@@ -7504,6 +7609,7 @@ var Settings = function Settings(_a) {
   }, React.createElement(FormInput_1["default"], {
     id: "last_name",
     label: 'Last name',
+    type: 'text',
     value: profileValues.last_name,
     onChange: handleProfileChange
   })), React.createElement("div", {
@@ -7575,25 +7681,25 @@ var Settings = function Settings(_a) {
     className: 'text-sm'
   }, "Store these recovery codes in a secure password manager. They can be used to recover access to your account if your two factor authentication device is lost.")), React.createElement("ul", {
     className: "col-span-6 sm:col-span-5 px-4 py-4 font-mono text-sm bg-gray-100 rounded-lg"
-  }, recoveryCodes.map(function (code) {
-    return React.createElement("li", null, code);
+  }, recoveryCodes.map(function (code, index) {
+    return React.createElement("li", {
+      key: "code-" + index
+    }, code);
   })))), React.createElement("div", {
     className: "col-span-6 sm:col-span-5"
   }, auth.user.two_factor_enabled ? React.createElement(React.Fragment, null, showRecoveryCodes ? React.createElement("button", {
     type: "button",
-    className: "inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue active:text-gray-800 active:bg-gray-50 transition ease-in-out duration-150 mr-3",
+    className: "btn-secondary",
     onClick: function onClick(e) {
       return regenerateRecoveryCode(e);
     }
   }, "Regenerate Recovery Codes") : React.createElement("button", {
     type: "button",
-    className: "inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:text-gray-500 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue active:text-gray-800 active:bg-gray-50 transition ease-in-out duration-150 mr-3",
-    onClick: function onClick() {
-      return setShowRecoveryCodes(true);
-    }
+    className: "btn-secondary",
+    onClick: showCodes
   }, "Show Recovery Codes"), React.createElement("button", {
     type: "button",
-    className: "inline-flex items-center justify-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 focus:outline-none focus:border-red-700 focus:shadow-outline-red active:bg-red-600 transition ease-in-out duration-150",
+    className: "btn-danger ml-2",
     onClick: function onClick() {
       return deleteTwoFa();
     }
@@ -7601,18 +7707,21 @@ var Settings = function Settings(_a) {
     onClick: enableTwoFa,
     className: "btn"
   }, "Enable"))))), React.createElement(Modal_1["default"], {
-    active: modalActive,
+    active: confirmModal.active,
     title: 'Password confirmation',
     handleHideModal: hideModal
   }, React.createElement("p", null, "For your security, please confirm your password to continue."), React.createElement("form", {
+    onSubmit: submitConfirmPassword,
     className: "mt-3"
   }, React.createElement(FormInput_1["default"], {
-    id: "check_password_confirmation",
+    id: "password",
     label: '',
     type: 'password',
-    value: passwordValues.password,
-    onChange: handlePasswordChange
-  }))));
+    value: passwordConfirmationValues.password,
+    onChange: handlePasswordConfirmationChange
+  }), passwordConfirmErrors !== null ? React.createElement("p", {
+    className: "mt-2 text-sm text-red-600"
+  }, passwordConfirmErrors === null || passwordConfirmErrors === void 0 ? void 0 : passwordConfirmErrors.password[0]) : null)));
 };
 
 Settings.layout = function (page) {
