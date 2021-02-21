@@ -5,16 +5,22 @@ interface IErrors {
 interface IProps {
     title: string;
     errors: IErrors
+    withoutErrorBag?: boolean
 }
 
-const ErrorBanner = ({title, errors}: IProps) => {
+const ErrorBanner = ({title, errors, withoutErrorBag = false}: IProps) => {
     const hasErrors =  Object.keys(errors).length > 0
     const resolvedErrors: string[] = []
     if(hasErrors) {
-        const errorKeys =  Object.keys(errors)
-        errorKeys.forEach((errorKey) => {
-           Object.values(errors[errorKey]).forEach(error => resolvedErrors.push(error))
-        })
+        if(withoutErrorBag) {
+            Object.values(errors).forEach(error => resolvedErrors.push(error))
+        } else {
+            const errorKeys =  Object.keys(errors)
+            errorKeys.forEach((errorKey) => {
+                Object.values(errors[errorKey]).forEach(error => resolvedErrors.push(error))
+            })
+        }
+
     }
     if (hasErrors) {
         const tmpErrors = Object.values(errors)

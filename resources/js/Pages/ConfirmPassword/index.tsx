@@ -1,13 +1,21 @@
 import * as React from 'react'
 import Layout from "@/Shared/Layout";
+import {Inertia} from "@inertiajs/inertia";
+import {IDefaultProps} from "@/Interfaces";
+import ErrorBanner from "@/Components/ErrorBanner";
+import NestedLayout from "@/Shared/NestedLayout";
 
-const ConfirmPassword = () => {
-    const handleSubmit = () => {
-        // '/user/confirm-password'
+const ConfirmPassword = ({errors}: IDefaultProps) => {
+    const [password,setPassword] = React.useState('')
+    const handleSubmit = (e: React.ChangeEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        Inertia.post('/user/confirm-password', {
+            password
+        })
     }
 
     const handleOnChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-
+        setPassword(e.target.value)
     }
 
     return (
@@ -19,6 +27,7 @@ const ConfirmPassword = () => {
                             Password Confirmation
                         </h2>
                     </div>
+                    <ErrorBanner title={`There were errors while confirming your password`} errors={errors} withoutErrorBag={true} />
                     <form onSubmit={handleSubmit} className="mt-8">
                         <div className="rounded-md shadow-sm">
                             <div>
@@ -28,7 +37,7 @@ const ConfirmPassword = () => {
                                 <div className="mt-3">
                                     <input
                                         onChange={handleOnChange}
-                                        type="text"
+                                        type="password"
                                         name="password"
                                         id="password"
                                         className="form-input"

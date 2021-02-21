@@ -6339,17 +6339,25 @@ var react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/r
 
 var ErrorBanner = function ErrorBanner(_a) {
   var title = _a.title,
-      errors = _a.errors;
+      errors = _a.errors,
+      _b = _a.withoutErrorBag,
+      withoutErrorBag = _b === void 0 ? false : _b;
   var hasErrors = Object.keys(errors).length > 0;
   var resolvedErrors = [];
 
   if (hasErrors) {
-    var errorKeys = Object.keys(errors);
-    errorKeys.forEach(function (errorKey) {
-      Object.values(errors[errorKey]).forEach(function (error) {
+    if (withoutErrorBag) {
+      Object.values(errors).forEach(function (error) {
         return resolvedErrors.push(error);
       });
-    });
+    } else {
+      var errorKeys = Object.keys(errors);
+      errorKeys.forEach(function (errorKey) {
+        Object.values(errors[errorKey]).forEach(function (error) {
+          return resolvedErrors.push(error);
+        });
+      });
+    }
   }
 
   if (hasErrors) {
@@ -6577,6 +6585,7 @@ var Modal = function Modal(_a) {
       _b = _a.submitText,
       submitText = _b === void 0 ? 'Submit' : _b,
       handleHideModal = _a.handleHideModal,
+      onSubmit = _a.onSubmit,
       children = _a.children;
   return react_1["default"].createElement(react_1["default"].Fragment, null, react_1["default"].createElement(react_scrolllock_1["default"], {
     isActive: active
@@ -6629,7 +6638,8 @@ var Modal = function Modal(_a) {
   }, children))))), react_1["default"].createElement("div", {
     className: "bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"
   }, react_1["default"].createElement("button", {
-    type: "submit",
+    type: "button",
+    onClick: onSubmit,
     className: "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-lighter focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm"
   }, submitText), react_1["default"].createElement("button", {
     type: "button",
@@ -7508,8 +7518,7 @@ var Settings = function Settings(_a) {
     }
   };
 
-  var submitConfirmPassword = function submitConfirmPassword(e) {
-    e.preventDefault();
+  var submitConfirmPassword = function submitConfirmPassword() {
     axios_1["default"].post('/user/confirm-password', passwordConfirmationValues).then(function () {
       if (confirmModal.callback) {
         confirmModal.callback();
@@ -7519,7 +7528,12 @@ var Settings = function Settings(_a) {
     });
   };
 
-  var enableTwoFa = function enableTwoFa(e) {
+  var handleSubmitConfirmPassword = function handleSubmitConfirmPassword(event) {
+    event.preventDefault();
+    submitConfirmPassword();
+  };
+
+  var enableTwoFa = function enableTwoFa() {
     checkIfPasswordIsConfirmed().then(function (confirmed) {
       // if confirmed enable 2fa else confirm
       if (confirmed) {
@@ -7582,7 +7596,7 @@ var Settings = function Settings(_a) {
     });
   };
 
-  var regenerateRecoveryCode = function regenerateRecoveryCode(e) {
+  var regenerateRecoveryCode = function regenerateRecoveryCode() {
     inertia_1.Inertia.post('/user/two-factor-recovery-codes', undefined, {
       preserveScroll: true,
       onSuccess: function onSuccess(page) {
@@ -7701,9 +7715,7 @@ var Settings = function Settings(_a) {
   }, auth.user.two_factor_enabled ? React.createElement(React.Fragment, null, showRecoveryCodes ? React.createElement("button", {
     type: "button",
     className: "btn-secondary",
-    onClick: function onClick(e) {
-      return regenerateRecoveryCode(e);
-    }
+    onClick: regenerateRecoveryCode
   }, "Regenerate Recovery Codes") : React.createElement("button", {
     type: "button",
     className: "btn-secondary",
@@ -7711,18 +7723,17 @@ var Settings = function Settings(_a) {
   }, "Show Recovery Codes"), React.createElement("button", {
     type: "button",
     className: "btn-danger ml-3",
-    onClick: function onClick() {
-      return deleteTwoFa();
-    }
+    onClick: deleteTwoFa
   }, "Disable")) : React.createElement("button", {
     onClick: enableTwoFa,
     className: "btn"
   }, "Enable"))))), React.createElement(Modal_1["default"], {
     active: confirmModal.active,
     title: 'Password confirmation',
-    handleHideModal: hideModal
+    handleHideModal: hideModal,
+    onSubmit: submitConfirmPassword
   }, React.createElement("p", null, "For your security, please confirm your password to continue."), React.createElement("form", {
-    onSubmit: submitConfirmPassword,
+    onSubmit: handleSubmitConfirmPassword,
     className: "mt-3"
   }, React.createElement(FormInput_1["default"], {
     id: "password",

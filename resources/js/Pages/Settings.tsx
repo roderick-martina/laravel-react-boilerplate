@@ -155,8 +155,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
         }
     }
 
-    const submitConfirmPassword = (e: React.ChangeEvent<HTMLFormElement>) => {
-        e.preventDefault()
+    const submitConfirmPassword = () => {
         axios.post('/user/confirm-password', passwordConfirmationValues)
             .then(() => {
                 if (confirmModal.callback) {
@@ -168,7 +167,12 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
             })
     }
 
-    const enableTwoFa = (e: any) => {
+    const handleSubmitConfirmPassword = (event: React.ChangeEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        submitConfirmPassword()
+    }
+
+    const enableTwoFa = () => {
         checkIfPasswordIsConfirmed()
             .then(confirmed => {
                 // if confirmed enable 2fa else confirm
@@ -235,7 +239,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
             })
     }
 
-    const regenerateRecoveryCode = (e: any) => {
+    const regenerateRecoveryCode = () => {
         Inertia.post('/user/two-factor-recovery-codes', undefined, {
             preserveScroll: true,
             onSuccess: page => {
@@ -384,7 +388,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                         <button
                                             type="button"
                                             className="btn-secondary"
-                                            onClick={e => regenerateRecoveryCode(e)}
+                                            onClick={regenerateRecoveryCode}
                                         >
                                             Regenerate Recovery Codes
                                         </button>
@@ -401,7 +405,7 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                                     <button
                                         type="button"
                                         className="btn-danger ml-3"
-                                        onClick={() => deleteTwoFa()}
+                                        onClick={deleteTwoFa}
                                     >
                                         Disable
                                     </button>
@@ -413,11 +417,11 @@ const Settings = ({route_name, auth, errors}: IDefaultProps) => {
                     </div>
                 </AppSection>
             </div>
-            <Modal active={confirmModal.active} title={'Password confirmation'} handleHideModal={hideModal}>
+            <Modal active={confirmModal.active} title={'Password confirmation'} handleHideModal={hideModal} onSubmit={submitConfirmPassword}>
                 <p>
                     For your security, please confirm your password to continue.
                 </p>
-                <form onSubmit={submitConfirmPassword} className={`mt-3`}>
+                <form onSubmit={handleSubmitConfirmPassword} className={`mt-3`}>
                     <FormInput
                         id={"password"}
                         label={''}
