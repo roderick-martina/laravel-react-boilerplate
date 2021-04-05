@@ -17,3 +17,27 @@
 .btn-danger {
     @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600;
 }
+
+.escape-button {
+    flex: none;
+    font-size: 0;
+    border-radius: .375rem;
+    background-color: #f9fafb;
+    border: 1px solid #d1d5db;
+    padding: .125rem .375rem;
+}
+
+.escape-button::before {
+    content: "esc";
+    color: #9ca3af;
+    font-size: .875rem;
+    line-height: 1.25rem;
+}
+
+/* hide x */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+    -webkit-appearance:none;
+}

@@ -6776,6 +6776,170 @@ exports.default = Notification;
 
 /***/ }),
 
+/***/ "./resources/js/Components/Search/index.tsx":
+/*!**************************************************!*\
+  !*** ./resources/js/Components/Search/index.tsx ***!
+  \**************************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var __createBinding = this && this.__createBinding || (Object.create ? function (o, m, k, k2) {
+  if (k2 === undefined) k2 = k;
+  Object.defineProperty(o, k2, {
+    enumerable: true,
+    get: function get() {
+      return m[k];
+    }
+  });
+} : function (o, m, k, k2) {
+  if (k2 === undefined) k2 = k;
+  o[k2] = m[k];
+});
+
+var __setModuleDefault = this && this.__setModuleDefault || (Object.create ? function (o, v) {
+  Object.defineProperty(o, "default", {
+    enumerable: true,
+    value: v
+  });
+} : function (o, v) {
+  o["default"] = v;
+});
+
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) {
+    if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+  }
+
+  __setModuleDefault(result, mod);
+
+  return result;
+};
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+var React = __importStar(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+
+var react_1 = __webpack_require__(/*! @headlessui/react */ "./node_modules/@headlessui/react/dist/headlessui.esm.js");
+
+var Search = function Search(_a) {
+  var active = _a.active,
+      handleSearchEscape = _a.handleSearchEscape;
+  var searchRef = React.useRef(null);
+  React.useEffect(function () {
+    // Delay is needed because modal has transition
+    setTimeout(function () {
+      var _a;
+
+      (_a = searchRef.current) === null || _a === void 0 ? void 0 : _a.focus();
+    }, 1);
+  }, [active]);
+  return React.createElement("div", {
+    className: (active ? 'pointer-events-auto' : 'pointer-events-none') + " fixed z-10 inset-0 overflow-y-auto"
+  }, React.createElement("div", {
+    className: "flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+  }, React.createElement(react_1.Transition, {
+    show: active,
+    enter: "ease-out duration-300",
+    enterFrom: "opacity-0",
+    enterTo: "opacity-100",
+    leave: "ease-in duration-200",
+    leaveFrom: "opacity-100",
+    leaveTo: "opacity-0"
+  }, React.createElement("div", {
+    onClick: handleSearchEscape,
+    className: "fixed inset-0 transition-opacity",
+    "aria-hidden": "true"
+  }, React.createElement("div", {
+    className: "absolute inset-0 bg-gray-900 opacity-25"
+  }))), React.createElement("span", {
+    className: "hidden sm:inline-block sm:align-middle sm:h-screen md:hidden",
+    "aria-hidden": "true"
+  }, "\u200B"), React.createElement(react_1.Transition, {
+    show: active,
+    enter: "ease-out duration-300",
+    enterFrom: "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95",
+    enterTo: "opacity-100 translate-y-0 sm:scale-100",
+    leave: "ease-in duration-200",
+    leaveFrom: "opacity-100 translate-y-0 sm:scale-100",
+    leaveTo: "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95",
+    className: "inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full sm:p-6 md:mt-40"
+  }, React.createElement("div", {
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "modal-headline"
+  }, React.createElement("div", null, React.createElement("div", {
+    className: "flex-1 flex border-b pb-4"
+  }, React.createElement("form", {
+    className: "w-full flex items-center lg:ml-0",
+    action: "#",
+    method: "GET"
+  }, React.createElement("label", {
+    htmlFor: "search_field",
+    className: "sr-only"
+  }, "Search"), React.createElement("div", {
+    className: "relative w-full text-gray-400 focus-within:text-gray-600"
+  }, React.createElement("div", {
+    className: "absolute inset-y-0 left-0 flex items-center pointer-events-none"
+  }, React.createElement("svg", {
+    className: "h-6 w-6 text-gray-400",
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 20 20",
+    fill: "currentColor",
+    "aria-hidden": "true"
+  }, React.createElement("path", {
+    fillRule: "evenodd",
+    d: "M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z",
+    clipRule: "evenodd"
+  }))), React.createElement("input", {
+    ref: searchRef,
+    // autoFocus={autoFocusActive}
+    id: "search_field",
+    className: "block w-full h-full pl-8 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent sm:text-md",
+    placeholder: "Search",
+    type: "search",
+    name: "search"
+  })), React.createElement("div", null, React.createElement("button", {
+    onClick: handleSearchEscape,
+    className: "escape-button"
+  })))), React.createElement("div", {
+    className: "mt-3 sm:mt-5"
+  }, React.createElement("h3", {
+    className: "text-lg leading-6 font-semibold text-gray-900"
+  }, "Search results"), React.createElement("div", {
+    className: "mt-4"
+  }, React.createElement("ul", null, React.createElement("li", null, React.createElement("div", {
+    className: "bg-gray-50 hover:bg-primary-lighter group flex py-4 rounded-lg cursor-pointer"
+  }, React.createElement("div", {
+    className: "w-14 flex justify-center items-center"
+  }, React.createElement("svg", {
+    className: "text-gray-600 group-hover:text-white",
+    width: "20",
+    height: "20",
+    viewBox: "0 0 20 20"
+  }, React.createElement("path", {
+    d: "M13 13h4-4V8H7v5h6v4-4H7V8H3h4V3v5h6V3v5h4-4v5zm-6 0v4-4H3h4z",
+    stroke: "currentColor",
+    fill: "none",
+    fillRule: "evenodd",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }))), React.createElement("div", {
+    className: "flex flex-col text-sm text-gray-500 group-hover:text-white"
+  }, React.createElement("p", null, "Lorem ipsum dolor sit"), React.createElement("p", null, "Lorem ipsum dolor sit amet consectetur adipisicing elit. Consequatur amet labore.")))))))), React.createElement("div", {
+    className: "mt-5 sm:mt-6 border-t pb-1"
+  })))));
+};
+
+exports.default = Search;
+
+/***/ }),
+
 /***/ "./resources/js/Components/Sidebar.tsx":
 /*!*********************************************!*\
   !*** ./resources/js/Components/Sidebar.tsx ***!
@@ -7889,6 +8053,8 @@ var AppContext_1 = __webpack_require__(/*! @/Hooks/AppContext */ "./resources/js
 
 var Notification_1 = __importDefault(__webpack_require__(/*! @/Components/Notification */ "./resources/js/Components/Notification/index.tsx"));
 
+var Search_1 = __importDefault(__webpack_require__(/*! @/Components/Search */ "./resources/js/Components/Search/index.tsx"));
+
 var NestedLayout = function NestedLayout(_a) {
   var name = _a.name,
       route_name = _a.route_name,
@@ -7902,15 +8068,29 @@ var NestedLayout = function NestedLayout(_a) {
       searchQuery = _c[0],
       setSearchQuery = _c[1];
 
-  var searchInputRef = react_1.useRef(null);
+  var _d = react_1.useState(false),
+      searchActive = _d[0],
+      setSearchActive = _d[1];
+
   var handleMobileNavToggle = AppContext_1.useAppContext().handleMobileNavToggle;
 
   var focusOnSearch = function focusOnSearch(event) {
-    var _a;
+    var windowsCombination = event.ctrlKey && event.keyCode === 75;
+    var macCombination = event.metaKey && event.keyCode === 75;
 
-    if (event.key === '/') {
-      (_a = searchInputRef === null || searchInputRef === void 0 ? void 0 : searchInputRef.current) === null || _a === void 0 ? void 0 : _a.focus();
+    if (windowsCombination || macCombination) {
+      setSearchActive(true);
+    } else if (event.key === 'Escape') {
+      setSearchActive(false);
     }
+  };
+
+  var handleSearchEscape = function handleSearchEscape() {
+    setSearchActive(false);
+  };
+
+  var handleSearchButton = function handleSearchButton() {
+    setSearchActive(true);
   };
 
   var handleSearchInput = function handleSearchInput(event) {
@@ -7938,7 +8118,10 @@ var NestedLayout = function NestedLayout(_a) {
   }), react_1["default"].createElement("div", {
     className: "flex-1 flex flex-col overflow-auto focus:outline-none",
     tabIndex: 0
-  }, react_1["default"].createElement(Notification_1["default"], null), react_1["default"].createElement("div", {
+  }, react_1["default"].createElement(Notification_1["default"], null), react_1["default"].createElement(Search_1["default"], {
+    active: searchActive,
+    handleSearchEscape: handleSearchEscape
+  }), react_1["default"].createElement("div", {
     // className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none">
     className: "flex-shrink-0 flex h-16 bg-white shadow border-b border-gray-200 lg:border-none"
   }, react_1["default"].createElement("button", {
@@ -7959,37 +8142,43 @@ var NestedLayout = function NestedLayout(_a) {
   }))), react_1["default"].createElement("div", {
     className: "flex-1 px-4 flex justify-between sm:px-6 lg:max-w-5xl lg:mx-auto lg:px-8"
   }, react_1["default"].createElement("div", {
-    className: "flex-1 flex"
-  }, react_1["default"].createElement("form", {
-    className: "w-full flex md:ml-0",
-    action: "#",
-    method: "GET"
-  }, react_1["default"].createElement("label", {
-    htmlFor: "search_field",
-    className: "sr-only"
-  }, "Search"), react_1["default"].createElement("div", {
-    className: "relative w-full text-cool-gray-400 focus-within:text-cool-gray-600"
-  }, react_1["default"].createElement("div", {
-    className: "absolute inset-y-0 left-0 flex items-center pointer-events-none"
+    className: "flex-1 flex items-center"
+  }, react_1["default"].createElement("button", {
+    onClick: handleSearchButton,
+    className: "py-2 w-full flex items-center md:ml-0"
   }, react_1["default"].createElement("svg", {
-    className: "h-5 w-5",
+    className: "h-5 w-5 text-gray-400",
+    xmlns: "http://www.w3.org/2000/svg",
+    viewBox: "0 0 20 20",
     fill: "currentColor",
-    viewBox: "0 0 20 20"
+    "aria-hidden": "true"
   }, react_1["default"].createElement("path", {
     fillRule: "evenodd",
-    clipRule: "evenodd",
-    d: "M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-  }))), react_1["default"].createElement("input", {
-    ref: searchInputRef,
-    value: searchQuery,
-    onChange: function onChange(event) {
-      return handleSearchInput(event);
-    },
-    id: "search_field",
-    className: "block w-full h-full pl-8 pr-3 py-2 rounded-md text-cool-gray-900 placeholder-cool-gray-500 focus:outline-none focus:placeholder-cool-gray-400 sm:text-sm border-none focus:ring-0",
-    placeholder: "Search (Press \"/\" to focus)",
-    type: "search"
-  })))), react_1["default"].createElement("div", {
+    d: "M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z",
+    clipRule: "evenodd"
+  })), react_1["default"].createElement("label", {
+    htmlFor: "search_field",
+    className: "sr-only"
+  }, "Search"), react_1["default"].createElement("p", {
+    className: 'text-gray-500 mr-4 ml-4'
+  }, "Quick search for anything"), react_1["default"].createElement("span", {
+    className: "hidden sm:block text-gray-400 text-sm leading-5 py-0.5 px-1.5 border border-gray-300 rounded-md"
+  }, react_1["default"].createElement("span", {
+    className: "sr-only"
+  }, "Press "), react_1["default"].createElement("kbd", {
+    className: "font-sans"
+  }, react_1["default"].createElement("abbr", {
+    title: "Command",
+    className: "no-underline"
+  }, "\u2318")), react_1["default"].createElement("span", {
+    className: "sr-only"
+  }, " and "), react_1["default"].createElement("kbd", {
+    className: "font-sans"
+  }, "K"), react_1["default"].createElement("span", {
+    className: "sr-only"
+  }, " and "), react_1["default"].createElement("span", {
+    className: "sr-only"
+  }, " to search")))), react_1["default"].createElement("div", {
     className: "ml-4 flex items-center md:ml-6"
   }, react_1["default"].createElement("button", {
     className: "p-1 text-cool-gray-400 rounded-full hover:bg-cool-gray-100 hover:text-cool-gray-500 focus:outline-none focus:shadow-outline focus:text-cool-gray-500",
