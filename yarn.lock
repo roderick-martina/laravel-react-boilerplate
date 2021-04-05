@@ -912,10 +912,10 @@
   resolved "https://registry.yarnpkg.com/@inertiajs/inertia-react/-/inertia-react-0.5.8.tgz#311e53fcdcbcf54a6a018b6470208d61a89350a0"
   integrity sha512-e/G0XTqGpXWhOvrA7N3lhTZ0Kl7V7aeCQb3E7Rn1LGV/oqOC5GnnG+//VXVxqsLrEX0qwtcxOTugnUyK6qKXyQ==
 
-"@inertiajs/inertia@^0.8.4":
-  version "0.8.4"
-  resolved "https://registry.yarnpkg.com/@inertiajs/inertia/-/inertia-0.8.4.tgz#c983e7363ff602a20103f3fee1e6caf103d551e1"
-  integrity sha512-iTiyqXNvOYCY7/llhJgAHBKuUNlz6FBgXV/w0yzugpepqVR23kxSjepYLYdAKWS5Noq6W+Iz7oLeqFjuoCy53w==
+"@inertiajs/inertia@^0.8.6":
+  version "0.8.6"
+  resolved "https://registry.yarnpkg.com/@inertiajs/inertia/-/inertia-0.8.6.tgz#30850e4005d50a997aa7af1c3cfdfccec9b8c2df"
+  integrity sha512-WHru6ZHV92d8HJqDYEFFEPTJdC9ogyISEO+hgR18PxzV19zqll51aUkmC5LFI/YGZ8kZyJVB+3k2YSvQs87opQ==
   dependencies:
     axios "^0.21.1"
     deepmerge "^4.0.0"
