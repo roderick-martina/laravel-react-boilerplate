@@ -11,8 +11,8 @@ var path = require('path');
  |
  */
 
-mix.ts('resources/js/app.js', 'public/js').react();
-mix.postCss('resources/css/app.css', 'public/css', [
+mix.ts('resources/js/app.js', 'public/build/js').react();
+mix.postCss('resources/css/app.css', 'public/build/css', [
     require('postcss-import'),
     require('tailwindcss'),
 ])
