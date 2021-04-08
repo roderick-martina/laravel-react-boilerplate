@@ -53,7 +53,7 @@ class FortifyServiceProvider extends ServiceProvider
             return Inertia::render('ConfirmPassword/index');
         });
 
-        Fortify::twoFactorChallengeView(function() {
+        Fortify::twoFactorChallengeView(function () {
             return Inertia::render('TwoFactorChallenge/index');
         });
     }

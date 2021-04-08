@@ -39,6 +39,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request)
     {
         $routeName = explode('/', URL::current());
+
         return array_merge(parent::share($request), [
             // Lazily
             'auth' => function () {
@@ -48,14 +49,14 @@ class HandleInertiaRequests extends Middleware
                         'first_name' => Auth::user()->first_name,
                         'last_name' => Auth::user()->last_name,
                         'email' => Auth::user()->email,
-                        'two_factor_enabled' => !is_null(Auth::user()->two_factor_secret)
-                    ] : null
+                        'two_factor_enabled' => ! is_null(Auth::user()->two_factor_secret),
+                    ] : null,
                 ];
             },
             'route_name' => isset($routeName[3]) ? $routeName[3] : '',
             'notification' => function () use ($request) {
                 return $request->session()->get('notification');
-            }
+            },
         ]);
     }
 }
