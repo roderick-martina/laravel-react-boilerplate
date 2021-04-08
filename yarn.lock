@@ -907,10 +907,10 @@
   resolved "https://registry.yarnpkg.com/@headlessui/react/-/react-0.3.1.tgz#62d8df3b49f7e212f81f7fa4ba3cefb8945720ec"
   integrity sha512-GnAVXCLmDs3CFvmvYo4Iu/LqAWVIoS+bGo+eMADnbWgF8BeMX13sWMyb8eOdj7N9nqY9QA2AsMzqYdAIbbsRIw==
 
-"@inertiajs/inertia-react@^0.5.8":
-  version "0.5.8"
-  resolved "https://registry.yarnpkg.com/@inertiajs/inertia-react/-/inertia-react-0.5.8.tgz#311e53fcdcbcf54a6a018b6470208d61a89350a0"
-  integrity sha512-e/G0XTqGpXWhOvrA7N3lhTZ0Kl7V7aeCQb3E7Rn1LGV/oqOC5GnnG+//VXVxqsLrEX0qwtcxOTugnUyK6qKXyQ==
+"@inertiajs/inertia-react@^0.5.10":
+  version "0.5.10"
+  resolved "https://registry.yarnpkg.com/@inertiajs/inertia-react/-/inertia-react-0.5.10.tgz#d02e434bc0e4fe5d92213586757ac392ef08987f"
+  integrity sha512-ek65Bu5qvOA3qhkEXf3yEkgxaFD9pq+Weh67Ga86hvwQb37cvESRwDpgZrQPk/2CVi0uybpYlvSb71vSZ8ZtEw==
 
 "@inertiajs/inertia@^0.8.6":
   version "0.8.6"
