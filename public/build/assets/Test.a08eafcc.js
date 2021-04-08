@@ -1,0 +1,1 @@
+import{r as e}from"./vendor.261035ba.js";export default()=>e.createElement(e.Fragment,null,e.createElement("p",null,"asdjasdasd"),e.createElement("p",null,"asdjasdasd"),e.createElement("p",null,"asdjasdasd"),e.createElement("p",null,"asdjasdasd"),e.createElement("p",null,"asdjasdasd"));

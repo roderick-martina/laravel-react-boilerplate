@@ -1,0 +1,75 @@
+{
+  "resources/js/app.jsx": {
+    "file": "assets/app.f88f3541.js",
+    "src": "resources/js/app.jsx",
+    "isEntry": true,
+    "imports": [
+      "_vendor.261035ba.js"
+    ],
+    "dynamicImports": [
+      "resources/js/Pages/Dashboard.tsx",
+      "resources/js/Pages/Settings.tsx",
+      "resources/js/Pages/Test.tsx",
+      "resources/js/Pages/Welcome.tsx"
+    ],
+    "css": [
+      "assets/app.f1bd93b9.css"
+    ]
+  },
+  "_vendor.261035ba.js": {
+    "file": "assets/vendor.261035ba.js"
+  },
+  "resources/js/Pages/Dashboard.tsx": {
+    "file": "assets/Dashboard.c909175d.js",
+    "src": "resources/js/Pages/Dashboard.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor.261035ba.js",
+      "_Layout.2c2a78d6.js",
+      "_NestedLayout.765f79bb.js",
+      "resources/js/app.jsx"
+    ]
+  },
+  "_Layout.2c2a78d6.js": {
+    "file": "assets/Layout.2c2a78d6.js",
+    "imports": [
+      "_vendor.261035ba.js"
+    ]
+  },
+  "_NestedLayout.765f79bb.js": {
+    "file": "assets/NestedLayout.765f79bb.js",
+    "imports": [
+      "_vendor.261035ba.js",
+      "resources/js/app.jsx",
+      "_Layout.2c2a78d6.js"
+    ]
+  },
+  "resources/js/Pages/Settings.tsx": {
+    "file": "assets/Settings.648d9336.js",
+    "src": "resources/js/Pages/Settings.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor.261035ba.js",
+      "_Layout.2c2a78d6.js",
+      "_NestedLayout.765f79bb.js",
+      "resources/js/app.jsx"
+    ]
+  },
+  "resources/js/Pages/Test.tsx": {
+    "file": "assets/Test.a08eafcc.js",
+    "src": "resources/js/Pages/Test.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor.261035ba.js"
+    ]
+  },
+  "resources/js/Pages/Welcome.tsx": {
+    "file": "assets/Welcome.eaf3ad5b.js",
+    "src": "resources/js/Pages/Welcome.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_vendor.261035ba.js",
+      "_Layout.2c2a78d6.js"
+    ]
+  }
+}

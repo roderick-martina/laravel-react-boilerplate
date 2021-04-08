@@ -1,0 +1,1 @@
+import{r as e}from"./vendor.261035ba.js";import{L as t}from"./Layout.2c2a78d6.js";const l=()=>e.createElement("div",{className:"flex flex-col"},e.createElement("h1",null,"hello"),e.createElement("p",null,"dit is een test"));l.layout=l=>e.createElement(t,{children:l});export default l;
