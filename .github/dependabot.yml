@@ -1,0 +1,62 @@
+version: 2
+updates:
+- package-ecosystem: npm
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "04:00"
+  open-pull-requests-limit: 10
+  target-branch: develop
+  ignore:
+  - dependency-name: "@headlessui/react"
+    versions:
+    - 1.0.0
+    - 1.1.0
+  - dependency-name: framer-motion
+    versions:
+    - 3.10.0
+    - 3.10.2
+    - 3.10.3
+    - 3.10.5
+    - 3.6.7
+    - 3.7.0
+    - 3.9.0
+    - 3.9.1
+    - 4.0.0
+    - 4.0.2
+    - 4.0.3
+    - 4.1.10
+    - 4.1.5
+    - 4.1.6
+    - 4.1.8
+    - 4.1.9
+  - dependency-name: ts-loader
+    versions:
+    - 8.0.18
+    - 9.0.0
+    - 9.0.2
+    - 9.1.0
+  - dependency-name: postcss
+    versions:
+    - 8.2.10
+    - 8.2.12
+    - 8.2.7
+    - 8.2.8
+  - dependency-name: "@inertiajs/inertia-react"
+    versions:
+    - 0.5.11
+    - 0.5.4
+    - 0.5.5
+    - 0.5.9
+  - dependency-name: "@tailwindcss/forms"
+    versions:
+    - 0.3.2
+  - dependency-name: laravel-mix
+    versions:
+    - 6.0.13
+  - dependency-name: "@inertiajs/inertia"
+    versions:
+    - 0.8.5
+  - dependency-name: typescript
+    versions:
+    - 4.2.2
