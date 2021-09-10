@@ -19,7 +19,7 @@
         "laravel-mix": "^6.0.16",
         "lodash": "^4.17.21",
         "postcss": "^8.2.14",
-        "postcss-import": "^14.0.1",
+        "postcss-import": "^14.0.2",
         "react-refresh": "^0.9.0",
         "tailwindcss": "^2.1.1",
         "ts-loader": "^8.1.0",
