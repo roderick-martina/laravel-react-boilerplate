@@ -1,11 +1,9 @@
 const defaultTheme = require('tailwindcss/defaultTheme')
 module.exports = {
-    mode: 'jit',
-    purge: [
+    content: [
         './resources/**/*.blade.php',
         './resources/**/*.{js,jsx,ts,tsx}',
     ],
-    darkMode: false, // or 'media' or 'class'
     theme: {
         extend: {
             fontFamily: {
@@ -19,9 +17,6 @@ module.exports = {
                 'primary-dark': '#04f'
             },
         },
-    },
-    variants: {
-        extend: {},
     },
     plugins: [
         require('@tailwindcss/typography'),
